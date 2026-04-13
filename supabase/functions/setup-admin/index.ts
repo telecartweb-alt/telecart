@@ -17,39 +17,44 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Check if admin already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const adminExists = existingUsers?.users?.find(u => u.email === "admin@softmarket.com");
-
-    let userId: string;
-    if (adminExists) {
-      userId = adminExists.id;
-    } else {
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email: "admin@softmarket.com",
-        password: "admin123456",
-        email_confirm: true,
-      });
-      if (error) throw error;
-      userId = data.user.id;
+    // Get admin email and password from request body
+    const { email, password } = await req.json();
+    
+    if (!email || !password) {
+      throw new Error("Email and password are required");
     }
 
-    // Check if role already assigned
-    const { data: existingRole } = await supabaseAdmin
-      .from("user_roles")
+    // Check if admin already exists in admin_users table
+    const { data: existingAdmin } = await supabaseAdmin
+      .from("admin_users")
       .select("*")
-      .eq("user_id", userId)
-      .eq("role", "admin")
+      .eq("email", email)
       .maybeSingle();
 
-    if (!existingRole) {
-      const { error: roleError } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: userId, role: "admin" });
-      if (roleError) throw roleError;
+    if (existingAdmin) {
+      return new Response(
+        JSON.stringify({ success: true, message: "Admin already exists", email }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    return new Response(JSON.stringify({ success: true, userId }), {
+    // Create auth user
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    if (error) throw error;
+
+    const userId = data.user.id;
+
+    // Add to admin_users table
+    const { error: adminError } = await supabaseAdmin
+      .from("admin_users")
+      .insert({ id: userId, email, is_admin: true });
+    if (adminError) throw adminError;
+
+    return new Response(JSON.stringify({ success: true, email, userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
