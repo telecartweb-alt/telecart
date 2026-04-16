@@ -196,14 +196,24 @@ export default function CategoryDetail() {
           {activeTab === 1 && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {subcategories.map((sub) => (
-                <div key={sub.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-                  <span className="text-sm font-medium">{sub.name}</span>
+                <Link 
+                  key={sub.id} 
+                  to={`/category/${id}/subcategory/${sub.id}`}
+                  className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <span className="text-sm font-medium group-hover:text-primary transition-colors">{sub.name}</span>
                   {sub.link && (
-                    <a href={sub.link} target="_blank" rel="noopener noreferrer" className="text-primary">
+                    <a 
+                      href={sub.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-primary hover:text-primary/80"
+                      onClick={(e) => e.preventDefault()}
+                    >
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   )}
-                </div>
+                </Link>
               ))}
               {subcategories.length === 0 && <p className="text-muted-foreground">No subcategories available.</p>}
             </div>

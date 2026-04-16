@@ -12,12 +12,13 @@ import Ads3ColSection from '@/components/home/Ads3ColSection';
 interface PageSection {
   id: string;
   section_type: string;
+  name: string;
   sort_order: number;
   is_visible: boolean;
 }
 
-const SECTION_MAP: Record<string, React.FC> = {
-  hero: HeroSection,
+const SECTION_MAP: Record<string, React.FC<{ sectionId: string }>> = {
+  hero: HeroSection as any,
   cards: FeaturedCards,
   categories: CategoriesSection,
   offers: OffersSection,
@@ -29,9 +30,30 @@ export default function Index() {
   const [sections, setSections] = useState<PageSection[]>([]);
 
   useEffect(() => {
-    supabase.from('page_sections').select('*').order('sort_order').then(({ data }) => {
+    // Initial fetch
+    const loadSections = async () => {
+      const { data } = await supabase.from('page_sections').select('*').order('sort_order');
       if (data) setSections(data);
-    });
+    };
+    
+    loadSections();
+
+    // Subscribe to real-time changes
+    const subscription = supabase
+      .channel('page_sections_homepage')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'page_sections' },
+        () => {
+          // Refetch sections when any change happens
+          loadSections();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -41,7 +63,13 @@ export default function Index() {
         {sections.filter(s => s.is_visible).map((section) => {
           const Component = SECTION_MAP[section.section_type];
           if (!Component) return null;
-          return <Component key={section.id} />;
+          
+          // Hero section doesn't need sectionId
+          if (section.section_type === 'hero') {
+            return <Component key={section.id} />;
+          }
+          
+          return <Component key={section.id} sectionId={section.id} />;
         })}
       </main>
       <Footer />

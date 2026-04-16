@@ -11,8 +11,14 @@ interface Ad {
   sort_order: number;
 }
 
-export default function Ads2ColSection() {
+interface Ads2ColSectionProps {
+  sectionId: string;
+}
+
+export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
   const [ads, setAds] = useState<Ad[]>([]);
+  const [heading, setHeading] = useState('2 Column Ads');
+  const [showHeading, setShowHeading] = useState(true);
   const isMobile = useIsMobile();
   const visibleCount = isMobile ? 1 : 2;
   const needsCarousel = ads.length > visibleCount;
@@ -28,22 +34,42 @@ export default function Ads2ColSection() {
 
   useEffect(() => {
     const loadAds = () => {
-      supabase.from('ads_2col').select('*').order('sort_order').then(({ data }) => {
+      supabase.from('ads_2col').select('*').eq('section_id', sectionId).order('sort_order').then(({ data }) => {
         if (data) setAds(data);
       });
     };
 
-    loadAds();
+    const loadSection = async () => {
+      const { data } = await supabase
+        .from('page_sections')
+        .select('heading, show_heading')
+        .eq('id', sectionId)
+        .single();
+      
+      if (data) {
+        setHeading(data.heading || '2 Column Ads');
+        setShowHeading(data.show_heading !== false);
+      }
+    };
 
-    const channel = supabase
-      .channel('ads_2col_live')
+    loadAds();
+    loadSection();
+
+    const adsChannel = supabase
+      .channel(`ads_2col_${sectionId}_live`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ads_2col' }, loadAds)
       .subscribe();
 
+    const sectionsChannel = supabase
+      .channel(`page_sections_2col_${sectionId}_live`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_sections' }, loadSection)
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      adsChannel.unsubscribe();
+      sectionsChannel.unsubscribe();
     };
-  }, []);
+  }, [sectionId]);
 
   const displayAds = useMemo(
     () => [...ads, ...ads.slice(0, duplicatedCount)],
@@ -55,10 +81,13 @@ export default function Ads2ColSection() {
   return (
     <section className="py-6 md:py-10">
       <div className="container mx-auto px-4 md:px-8 lg:px-12">
+        {showHeading && (
+          <h2 className="mb-6 text-2xl md:text-3xl font-semibold">
+            {heading}
+          </h2>
+        )}
         {needsCarousel ? (
           <div className="relative">
-            
-
             <div className="overflow-hidden">
               <div
                 className="flex"
@@ -74,10 +103,9 @@ export default function Ads2ColSection() {
                     className="flex-none px-2.5"
                     style={{ width: `${slideWidth}%` }}
                   >
-                    {/* ✅ UPDATED HEIGHT */}
                     <a
                       href={ad.link || '#'}
-                      className="block h-[140px] md:h-[280px] overflow-hidden rounded-xl bg-muted"
+                      className="block h-[160px] md:h-[300px] overflow-hidden rounded-xl bg-muted"
                     >
                       {ad.image_url && (
                         <img
@@ -96,16 +124,15 @@ export default function Ads2ColSection() {
           <div className="flex">
             {ads.map((ad) => (
               <div key={ad.id} className="flex-1 px-2.5">
-                {/* ✅ UPDATED HEIGHT */}
                 <a
                   href={ad.link || '#'}
-                  className="block h-[140px] md:h-[180px] overflow-hidden rounded-xl bg-muted"
+                  className="block h-[180px] md:h-[300px] overflow-hidden rounded-xl bg-muted"
                 >
                   {ad.image_url && (
                     <img
                       src={ad.image_url}
                       alt="Ad"
-                      className="h-full w-full object-contain transition-transform duration-300 hover:scale-105"
+                      className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
                     />
                   )}
                 </a>

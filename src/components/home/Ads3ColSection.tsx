@@ -11,10 +11,26 @@ interface Ad {
   sort_order: number;
 }
 
-export default function Ads3ColSection() {
+interface Ads3ColSectionProps {
+  sectionId: string;
+}
+
+export default function Ads3ColSection({ sectionId }: Ads3ColSectionProps) {
   const [ads, setAds] = useState<Ad[]>([]);
+  const [heading, setHeading] = useState('3 Column Ads');
+  const [showHeading, setShowHeading] = useState(true);
   const isMobile = useIsMobile();
-  const visibleCount = isMobile ? 1 : 3;
+  
+  // Dynamic layout based on number of ads
+  let visibleCount: number;
+  if (ads.length < 3) {
+    // Use 2-column layout for 1-2 ads
+    visibleCount = isMobile ? 1 : 2;
+  } else {
+    // Use 3-column layout for 3+ ads
+    visibleCount = isMobile ? 1 : 3;
+  }
+  
   const needsCarousel = ads.length > visibleCount;
   const {
     index,
@@ -27,22 +43,42 @@ export default function Ads3ColSection() {
 
   useEffect(() => {
     const loadAds = () => {
-      supabase.from('ads_3col').select('*').order('sort_order').then(({ data }) => {
+      supabase.from('ads_3col').select('*').eq('section_id', sectionId).order('sort_order').then(({ data }) => {
         if (data) setAds(data);
       });
     };
 
-    loadAds();
+    const loadSection = async () => {
+      const { data } = await supabase
+        .from('page_sections')
+        .select('heading, show_heading')
+        .eq('id', sectionId)
+        .single();
+      
+      if (data) {
+        setHeading(data.heading || '3 Column Ads');
+        setShowHeading(data.show_heading !== false);
+      }
+    };
 
-    const channel = supabase
-      .channel('ads_3col_live')
+    loadAds();
+    loadSection();
+
+    const adsChannel = supabase
+      .channel(`ads_3col_${sectionId}_live`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ads_3col' }, loadAds)
       .subscribe();
 
+    const sectionsChannel = supabase
+      .channel(`page_sections_3col_${sectionId}_live`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_sections' }, loadSection)
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      adsChannel.unsubscribe();
+      sectionsChannel.unsubscribe();
     };
-  }, []);
+  }, [sectionId]);
 
   const displayAds = useMemo(
     () => [...ads, ...ads.slice(0, duplicatedCount)],
@@ -54,11 +90,14 @@ export default function Ads3ColSection() {
   return (
     <section className="py-6 md:py-10">
       <div className="container mx-auto px-4 md:px-8 lg:px-12">
+        {showHeading && (
+          <h2 className="mb-6 text-2xl md:text-3xl font-semibold">
+            {heading}
+          </h2>
+        )}
         {needsCarousel ? (
           <div className="relative">
-            <button onClick={goNext} className="absolute -right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center text-foreground/80 md:flex">
-              <ChevronRight className="h-5 w-5" />
-            </button>
+            
             <div className="overflow-hidden">
               <div
                 className="flex"
@@ -74,7 +113,14 @@ export default function Ads3ColSection() {
                     className="flex-none px-2.5"
                     style={{ width: `${slideWidth}%` }}
                   >
-                    <a href={ad.link || '#'} className="block aspect-[16/9] overflow-hidden rounded-xl bg-muted">
+                    <a
+                      href={ad.link || '#'}
+                      className={`block overflow-hidden rounded-xl bg-muted ${
+                        ads.length < 3
+                          ? 'h-[180px] md:h-[300px]'
+                          : 'aspect-[16/9]'
+                      }`}
+                    >
                       {ad.image_url && <img src={ad.image_url} alt="Ad" className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />}
                     </a>
                   </div>
@@ -86,7 +132,14 @@ export default function Ads3ColSection() {
           <div className="flex">
             {ads.map((ad) => (
               <div key={ad.id} className="flex-1 px-2.5">
-                <a href={ad.link || '#'} className="block aspect-[16/9] overflow-hidden rounded-xl bg-muted">
+                <a
+                  href={ad.link || '#'}
+                  className={`block overflow-hidden rounded-xl bg-muted ${
+                    ads.length < 3
+                      ? 'h-[180px] md:h-[300px]'
+                      : 'aspect-[16/9]'
+                  }`}
+                >
                   {ad.image_url && <img src={ad.image_url} alt="Ad" className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />}
                 </a>
               </div>

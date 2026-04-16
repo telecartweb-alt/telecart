@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useSectionInstances } from '@/hooks/useSectionInstances';
 import { toast } from 'sonner';
 import ImageUpload from '@/components/admin/ImageUpload';
 import ImageCropper from '@/components/admin/ImageCropper';
@@ -18,16 +19,16 @@ import {
   LayoutDashboard, Type, Layers, CreditCard, Tag, Star, Image, Megaphone
 } from 'lucide-react';
 
-interface PageSection { id: string; section_type: string; sort_order: number; is_visible: boolean; }
-interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; sort_order: number; }
-interface Category { id: string; name: string; icon_url: string | null; bg_color: string; sort_order: number; }
-interface Subcategory { id: string; category_id: string; name: string; link: string | null; sort_order: number; }
+interface PageSection { id: string; section_type: string; name: string; sort_order: number; is_visible: boolean; heading: string; show_heading: boolean; }
+interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; sort_order: number; section_id: string; }
+interface Category { id: string; name: string; icon_url: string | null; bg_color: string; sort_order: number; section_id: string; }
+interface Subcategory { id: string; category_id: string; name: string; link: string | null; video_url?: string | null; sort_order: number; }
 interface CategoryDownload { id: string; category_id: string; file_name: string; file_url: string; file_type: string; }
-interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; }
-interface Ad2 { id: string; image_url: string | null; link: string | null; sort_order: number; }
-interface Ad3 { id: string; image_url: string | null; link: string | null; sort_order: number; }
+interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; section_id: string; }
+interface Ad2 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; }
+interface Ad3 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; }
 
-type Tab = 'dashboard' | 'hero' | 'sections' | 'cards' | 'categories' | 'offers' | 'ads2';
+type Tab = 'dashboard' | 'hero' | 'sections' | 'cards' | 'categories' | 'offers' | 'ads_2col' | 'ads_3col';
 
 function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -49,7 +50,8 @@ const SIDEBAR_ITEMS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'cards', label: 'Feature Cards', icon: <CreditCard className="w-5 h-5" /> },
   { key: 'categories', label: 'Categories', icon: <Tag className="w-5 h-5" /> },
   { key: 'offers', label: 'Offers', icon: <Star className="w-5 h-5" /> },
-  { key: 'ads2', label: 'Advertisements', icon: <Image className="w-5 h-5" /> },
+  { key: 'ads_2col', label: '2-Col Ads', icon: <Image className="w-5 h-5" /> },
+  { key: 'ads_3col', label: '3-Col Ads', icon: <Image className="w-5 h-5" /> },
 ];
 
 export default function AdminDashboard() {
@@ -57,6 +59,18 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Use the new section instances hook
+  const {
+    sections: sectionsFromHook,
+    addSection,
+    deleteSection,
+    toggleVisibility,
+    updateSectionName,
+    updateSortOrder,
+    updateHeading,
+    toggleShowHeading,
+  } = useSectionInstances();
 
   const [sections, setSections] = useState<PageSection[]>([]);
   const [heroText, setHeroText] = useState('');
@@ -77,7 +91,45 @@ export default function AdminDashboard() {
   const [editAd2, setEditAd2] = useState<Partial<Ad2> | null>(null);
   const [editAd3, setEditAd3] = useState<Partial<Ad3> | null>(null);
 
+  // Modal state for adding sections
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
+  const [addSectionType, setAddSectionType] = useState<string>('');
+  const [addSectionName, setAddSectionName] = useState('');
+  const [addingSectionLoading, setAddingSectionLoading] = useState(false);
+
+  // State for editing section names
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editingSectionName, setEditingSectionName] = useState('');
+
+  // State for editing section headings
+  const [editingHeadingSectionId, setEditingHeadingSectionId] = useState<string | null>(null);
+  const [editingHeadingText, setEditingHeadingText] = useState('');
+  const [editingHeadingVisible, setEditingHeadingVisible] = useState(true);
+
+  // Track which section instance is being edited for each type
+  const [selectedCardsSectionId, setSelectedCardsSectionId] = useState<string>('');
+  const [selectedCategoriesSectionId, setSelectedCategoriesSectionId] = useState<string>('');
+  const [selectedOffersSectionId, setSelectedOffersSectionId] = useState<string>('');
+  const [selectedAds2SectionId, setSelectedAds2SectionId] = useState<string>('');
+  const [selectedAds3SectionId, setSelectedAds3SectionId] = useState<string>('');
+
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  // Sync sections from hook to local state
+  useEffect(() => {
+    setSections(sectionsFromHook);
+    
+    // Set default selected sections (first of each type)
+    const getFirstSectionIdByType = (type: string) => {
+      return sectionsFromHook.find(s => s.section_type === type)?.id || '';
+    };
+    
+    setSelectedCardsSectionId(getFirstSectionIdByType('cards'));
+    setSelectedCategoriesSectionId(getFirstSectionIdByType('categories'));
+    setSelectedOffersSectionId(getFirstSectionIdByType('offers'));
+    setSelectedAds2SectionId(getFirstSectionIdByType('ads_2col'));
+    setSelectedAds3SectionId(getFirstSectionIdByType('ads_3col'));
+  }, [sectionsFromHook]);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate('/admin/login');
@@ -135,7 +187,7 @@ export default function AdminDashboard() {
     const newSections = arrayMove(sections, oldIndex, newIndex).map((s, i) => ({ ...s, sort_order: i }));
     setSections(newSections);
     for (const s of newSections) {
-      await supabase.from('page_sections').update({ sort_order: s.sort_order }).eq('id', s.id);
+      await updateSortOrder(s.id, s.sort_order);
     }
     toast.success('Section order saved!');
   }
@@ -160,7 +212,7 @@ export default function AdminDashboard() {
         const { error } = await supabase.from('featured_cards').update({ title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url }).eq('id', editCard.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('featured_cards').insert({ title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, sort_order: cards.length });
+        const { error } = await supabase.from('featured_cards').insert({ title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, sort_order: cards.length, section_id: selectedCardsSectionId });
         if (error) throw error;
       }
       setEditCard(null);
@@ -201,7 +253,7 @@ export default function AdminDashboard() {
         
         await supabase.from('subcategories').delete().eq('category_id', editCategory.id);
         for (let i = 0; i < editSubs.length; i++) {
-          const { error: subError } = await supabase.from('subcategories').insert({ category_id: editCategory.id, name: editSubs[i].name, link: editSubs[i].link, sort_order: i });
+          const { error: subError } = await supabase.from('subcategories').insert({ category_id: editCategory.id, name: editSubs[i].name, link: editSubs[i].link, video_url: editSubs[i].video_url, sort_order: i });
           if (subError) throw subError;
         }
         
@@ -216,12 +268,12 @@ export default function AdminDashboard() {
           if (downloadError) throw downloadError;
         }
       } else {
-        const { data, error: insertError } = await supabase.from('categories').insert({ name: editCategory.name.trim(), icon_url: editCategory.icon_url, bg_color: editCategory.bg_color || '#FFF9C4', sort_order: categories.length }).select().single();
+        const { data, error: insertError } = await supabase.from('categories').insert({ name: editCategory.name.trim(), icon_url: editCategory.icon_url, bg_color: editCategory.bg_color || '#FFF9C4', sort_order: categories.length, section_id: selectedCategoriesSectionId }).select().single();
         if (insertError) throw insertError;
         
         if (data) {
           for (let i = 0; i < editSubs.length; i++) {
-            const { error: subError } = await supabase.from('subcategories').insert({ category_id: data.id, name: editSubs[i].name, link: editSubs[i].link, sort_order: i });
+            const { error: subError } = await supabase.from('subcategories').insert({ category_id: data.id, name: editSubs[i].name, link: editSubs[i].link, video_url: editSubs[i].video_url, sort_order: i });
             if (subError) throw subError;
           }
           for (const download of cleanedDownloads) {
@@ -265,7 +317,7 @@ export default function AdminDashboard() {
         const { error } = await supabase.from('offers').update({ heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link }).eq('id', editOffer.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('offers').insert({ heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link, sort_order: offers.length });
+        const { error } = await supabase.from('offers').insert({ heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link, sort_order: offers.length, section_id: selectedOffersSectionId });
         if (error) throw error;
       }
       setEditOffer(null); loadAll(); toast.success('Offer saved!');
@@ -294,7 +346,7 @@ export default function AdminDashboard() {
         const { error } = await supabase.from('ads_2col').update({ image_url: editAd2.image_url, link: editAd2.link }).eq('id', editAd2.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('ads_2col').insert({ image_url: editAd2.image_url, link: editAd2.link, sort_order: ads2.length });
+        const { error } = await supabase.from('ads_2col').insert({ image_url: editAd2.image_url, link: editAd2.link, sort_order: ads2.length, section_id: selectedAds2SectionId });
         if (error) throw error;
       }
       setEditAd2(null); loadAll(); toast.success('Ad saved!');
@@ -323,7 +375,7 @@ export default function AdminDashboard() {
         const { error } = await supabase.from('ads_3col').update({ image_url: editAd3.image_url, link: editAd3.link }).eq('id', editAd3.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('ads_3col').insert({ image_url: editAd3.image_url, link: editAd3.link, sort_order: ads3.length });
+        const { error } = await supabase.from('ads_3col').insert({ image_url: editAd3.image_url, link: editAd3.link, sort_order: ads3.length, section_id: selectedAds3SectionId });
         if (error) throw error;
       }
       setEditAd3(null); loadAll(); toast.success('Ad saved!');
@@ -346,6 +398,80 @@ export default function AdminDashboard() {
   }
 
   async function handleLogout() { await supabase.auth.signOut(); navigate('/admin/login'); }
+
+  // Handle adding a new section
+  async function handleAddSection() {
+    if (!addSectionType.trim()) {
+      toast.error('Please select a section type');
+      return;
+    }
+    if (!addSectionName.trim()) {
+      toast.error('Please enter a section name');
+      return;
+    }
+    setAddingSectionLoading(true);
+    try {
+      const result = await addSection(addSectionType, addSectionName);
+      if (result) {
+        toast.success('Section added successfully!');
+        setShowAddSectionModal(false);
+        setAddSectionType('');
+        setAddSectionName('');
+      } else {
+        toast.error('Failed to add section');
+      }
+    } catch (error) {
+      console.error('Error adding section:', error);
+      toast.error('Error adding section');
+    } finally {
+      setAddingSectionLoading(false);
+    }
+  }
+
+  // Handle deleting a section
+  async function handleDeleteSection(sectionId: string) {
+    if (!window.confirm('Are you sure you want to delete this section?')) return;
+    const success = await deleteSection(sectionId);
+    if (success) {
+      toast.success('Section deleted!');
+    } else {
+      toast.error('Failed to delete section');
+    }
+  }
+
+  // Handle opening heading edit modal
+  function openHeadingEdit(sectionId: string) {
+    const section = sections.find(s => s.id === sectionId);
+    if (section) {
+      setEditingHeadingSectionId(sectionId);
+      setEditingHeadingText(section.heading || '');
+      setEditingHeadingVisible(section.show_heading !== false);
+    }
+  }
+
+  // Handle saving heading
+  async function handleSaveHeading() {
+    if (!editingHeadingSectionId) return;
+    
+    try {
+      const success1 = await updateHeading(editingHeadingSectionId, editingHeadingText);
+      const success2 = await toggleShowHeading(editingHeadingSectionId, editingHeadingVisible);
+      
+      if (success1 && success2) {
+        toast.success('Heading updated!');
+        setEditingHeadingSectionId(null);
+        // Refetch sections
+        const { data: updatedSections } = await supabase
+          .from('page_sections')
+          .select('*')
+          .order('sort_order', { ascending: true });
+        if (updatedSections) setSections(updatedSections);
+      }
+    } catch (error) {
+      console.error('Error saving heading:', error);
+      toast.error('Failed to save heading');
+    }
+  }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
@@ -407,9 +533,6 @@ export default function AdminDashboard() {
       <main className={`flex-1 transition-all duration-300 w-full ${sidebarOpen ? 'md:ml-64' : 'md:ml-0'}`}>
         <header className="bg-card border-b border-border sticky top-0 z-30 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:bg-secondary md:hidden">
-            <Layers className="w-5 h-5" />
-          </button>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-2 rounded-lg hover:bg-secondary">
             <Layers className="w-5 h-5" />
           </button>
           <span className="text-xs md:text-sm text-muted-foreground truncate">{user?.email}</span>
@@ -474,41 +597,149 @@ export default function AdminDashboard() {
 
           {/* SECTIONS */}
           {tab === 'sections' && (
-            <div className="max-w-lg">
-              <h2 className="text-xl font-bold mb-4">Drag to reorder homepage sections</h2>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
-                <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                  {sections.map((s) => (
-                    <SortableItem key={s.id} id={s.id}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">{sectionLabels[s.section_type] || s.section_type}</span>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" checked={s.is_visible} onChange={async (e) => {
-                            const vis = e.target.checked;
-                            await supabase.from('page_sections').update({ is_visible: vis }).eq('id', s.id);
-                            setSections(prev => prev.map(x => x.id === s.id ? { ...x, is_visible: vis } : x));
-                          }} className="rounded" />
-                          Visible
-                        </label>
-                      </div>
-                    </SortableItem>
-                  ))}
-                </SortableContext>
-              </DndContext>
+            <div>
+              <div className="mb-6">
+                <h2 className="text-xl font-bold mb-2">Page Layout - Manage Sections</h2>
+                <p className="text-sm text-muted-foreground">Drag to reorder sections. Manage visibility and edit individual sections from their tabs.</p>
+              </div>
+
+              {sections.length > 0 ? (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+                  <SortableContext
+                    items={sections.map(s => s.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-4">
+                      {sections.map((s) => {
+                        // Count items in this section
+                        let itemCount = 0;
+                        if (s.section_type === 'cards') itemCount = cards.filter(c => c.section_id === s.id).length;
+                        else if (s.section_type === 'categories') itemCount = categories.filter(c => c.section_id === s.id).length;
+                        else if (s.section_type === 'offers') itemCount = offers.filter(o => o.section_id === s.id).length;
+                        else if (s.section_type === 'ads_2col') itemCount = ads2.filter(a => a.section_id === s.id).length;
+                        else if (s.section_type === 'ads_3col') itemCount = ads3.filter(a => a.section_id === s.id).length;
+
+                        return (
+                          <SortableItem key={s.id} id={s.id}>
+                            <div className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors group">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <GripVertical className="w-8 h-8 text-muted-foreground cursor-grab active:cursor-grabbing opacity-50 group-hover:opacity-100 flex-shrink-0" />
+                                  <div className="flex-1">
+                                    <h3 className="font-bold text-sm">{s.name}</h3>
+                                    <p className="text-xs text-muted-foreground">{itemCount} items • {s.section_type}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={s.is_visible}
+                                      onChange={async (e) => {
+                                        const vis = e.target.checked;
+                                        await toggleVisibility(s.id, vis);
+                                      }}
+                                      className="rounded cursor-pointer"
+                                    />
+                                    <span className="text-xs">Visible</span>
+                                  </label>
+                                  <button
+                                    onClick={() => handleDeleteSection(s.id)}
+                                    className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Delete section"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </SortableItem>
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No sections added yet. Create sections from the tabs above.</p>
+              )}
             </div>
           )}
 
           {/* CARDS */}
           {tab === 'cards' && (
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">Featured Cards</h2>
-                <button onClick={() => setEditCard({ title: '', description: '', logo_url: null })} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-1.5">
-                  <Plus className="w-4 h-4" /> Add Card
+                <button
+                  onClick={() => {
+                    setAddSectionType('cards');
+                    setShowAddSectionModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4" /> Add New Section
                 </button>
               </div>
+
+              {/* Section instances tabs */}
+              {sections.filter(s => s.section_type === 'cards').length > 0 && (
+                <div className="mb-6 hidden md:block">
+                  <div className="flex gap-2 flex-wrap mb-4 overflow-x-auto pb-2">
+                    {sections.filter(s => s.section_type === 'cards').map(section => (
+                      <button
+                        key={section.id}
+                        onClick={() => setSelectedCardsSectionId(section.id)}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          selectedCardsSectionId === section.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card border border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {section.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {selectedCardsSectionId ? `Adding cards to: ${sections.find(s => s.id === selectedCardsSectionId)?.name}` : 'No section selected'}
+                </p>
+                {selectedCardsSectionId && (
+                  <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => openHeadingEdit(selectedCardsSectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span className="hidden md:inline">Edit Heading</span>
+                      <span className="md:hidden">Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(selectedCardsSectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-destructive text-destructive-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Delete Section</span>
+                      <span className="md:hidden">Delete</span>
+                    </button>
+                    <button
+                      onClick={() => setEditCard({ title: '', description: '', logo_url: null })}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden md:inline">Add Card</span>
+                      <span className="md:hidden">Add</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="grid gap-3">
-                {cards.map((card) => (
+                {cards
+                  .filter(c => selectedCardsSectionId ? c.section_id === selectedCardsSectionId : true)
+                  .map((card) => (
                   <div key={card.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
                     {card.logo_url && <img src={card.logo_url} alt="" className="w-12 h-12 rounded-lg object-contain bg-muted p-1" />}
                     <div className="flex-1 min-w-0">
@@ -542,14 +773,78 @@ export default function AdminDashboard() {
           {/* CATEGORIES */}
           {tab === 'categories' && (
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">Categories</h2>
-                <button onClick={() => { setEditCategory({ name: '', bg_color: '#FFF9C4', icon_url: null }); setEditSubs([]); setEditDownloads([]); }} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-1.5">
-                  <Plus className="w-4 h-4" /> Add Category
+                <button
+                  onClick={() => {
+                    setAddSectionType('categories');
+                    setShowAddSectionModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4" /> Add New Section
                 </button>
               </div>
+
+              {/* Section instances tabs */}
+              {sections.filter(s => s.section_type === 'categories').length > 0 && (
+                <div className="mb-6 hidden md:block">
+                  <div className="flex gap-2 flex-wrap mb-4 overflow-x-auto pb-2">
+                    {sections.filter(s => s.section_type === 'categories').map(section => (
+                      <button
+                        key={section.id}
+                        onClick={() => setSelectedCategoriesSectionId(section.id)}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          selectedCategoriesSectionId === section.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card border border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {section.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {selectedCategoriesSectionId ? `Adding categories to: ${sections.find(s => s.id === selectedCategoriesSectionId)?.name}` : 'No section selected'}
+                </p>
+                {selectedCategoriesSectionId && (
+                  <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => openHeadingEdit(selectedCategoriesSectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span className="hidden md:inline">Edit Heading</span>
+                      <span className="md:hidden">Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(selectedCategoriesSectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-destructive text-destructive-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Delete Section</span>
+                      <span className="md:hidden">Delete</span>
+                    </button>
+                    <button
+                      onClick={() => { setEditCategory({ name: '', bg_color: '#FFF9C4', icon_url: null }); setEditSubs([]); setEditDownloads([]); }}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden md:inline">Add Category</span>
+                      <span className="md:hidden">Add</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="grid gap-3">
-                {categories.map((cat) => (
+                {categories
+                  .filter(c => selectedCategoriesSectionId ? c.section_id === selectedCategoriesSectionId : true)
+                  .map((cat) => (
                   <div key={cat.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.bg_color }}>
                       {cat.icon_url && <img src={cat.icon_url} alt="" className="w-6 h-6 object-contain" />}
@@ -583,13 +878,16 @@ export default function AdminDashboard() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium">Subcategories</label>
-                        <button onClick={() => setEditSubs([...editSubs, { id: crypto.randomUUID(), category_id: editCategory.id || '', name: '', link: null, sort_order: editSubs.length }])} className="text-sm text-primary font-semibold">+ Add</button>
+                        <button onClick={() => setEditSubs([...editSubs, { id: crypto.randomUUID(), category_id: editCategory.id || '', name: '', link: null, video_url: null, sort_order: editSubs.length }])} className="text-sm text-primary font-semibold">+ Add</button>
                       </div>
                       {editSubs.map((sub, i) => (
-                        <div key={sub.id} className="flex gap-2 mb-2">
-                          <input placeholder="Name" value={sub.name} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], name: e.target.value }; setEditSubs(ns); }} className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
-                          <input placeholder="Link (optional)" value={sub.link || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], link: e.target.value || null }; setEditSubs(ns); }} className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
-                          <button onClick={() => setEditSubs(editSubs.filter((_, j) => j !== i))} className="text-destructive p-1"><X className="w-4 h-4" /></button>
+                        <div key={sub.id} className="space-y-2 mb-4 p-3 rounded-lg border border-border bg-muted/30">
+                          <div className="flex gap-2">
+                            <input placeholder="Name" value={sub.name} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], name: e.target.value }; setEditSubs(ns); }} className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                            <button onClick={() => setEditSubs(editSubs.filter((_, j) => j !== i))} className="text-destructive p-2"><X className="w-4 h-4" /></button>
+                          </div>
+                          <input placeholder="Link (optional)" value={sub.link || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], link: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                          <input placeholder="Video URL (optional)" value={sub.video_url || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], video_url: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
                         </div>
                       ))}
                     </div>
@@ -671,14 +969,78 @@ export default function AdminDashboard() {
           {/* OFFERS */}
           {tab === 'offers' && (
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">Offers & Discounts</h2>
-                <button onClick={() => setEditOffer({ heading: '', description: '', image_url: null, link: null })} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-1.5">
-                  <Plus className="w-4 h-4" /> Add Offer
+                <button
+                  onClick={() => {
+                    setAddSectionType('offers');
+                    setShowAddSectionModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4" /> Add New Section
                 </button>
               </div>
+
+              {/* Section instances tabs */}
+              {sections.filter(s => s.section_type === 'offers').length > 0 && (
+                <div className="mb-6 hidden md:block">
+                  <div className="flex gap-2 flex-wrap mb-4 overflow-x-auto pb-2">
+                    {sections.filter(s => s.section_type === 'offers').map(section => (
+                      <button
+                        key={section.id}
+                        onClick={() => setSelectedOffersSectionId(section.id)}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          selectedOffersSectionId === section.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card border border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {section.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {selectedOffersSectionId ? `Adding offers to: ${sections.find(s => s.id === selectedOffersSectionId)?.name}` : 'No section selected'}
+                </p>
+                {selectedOffersSectionId && (
+                  <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => openHeadingEdit(selectedOffersSectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span className="hidden md:inline">Edit Heading</span>
+                      <span className="md:hidden">Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(selectedOffersSectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-destructive text-destructive-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Delete Section</span>
+                      <span className="md:hidden">Delete</span>
+                    </button>
+                    <button
+                      onClick={() => setEditOffer({ heading: '', description: '', image_url: null, link: null })}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden md:inline">Add Offer</span>
+                      <span className="md:hidden">Add</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="grid gap-3">
-                {offers.map((offer) => (
+                {offers
+                  .filter(o => selectedOffersSectionId ? o.section_id === selectedOffersSectionId : true)
+                  .map((offer) => (
                   <div key={offer.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
                     {offer.image_url && <img src={offer.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
                     <div className="flex-1 min-w-0">
@@ -713,40 +1075,82 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ADS 2COL */}
-          {tab === 'ads2' && (
+          {/* 2-COL ADS */}
+          {tab === 'ads_2col' && (
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Advertisements</h2>
-                <div className="flex gap-2">
-                  <button onClick={() => setEditAd2({ image_url: null, link: null })} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> 2-Col Ad
-                  </button>
-                  <button onClick={() => setEditAd3({ image_url: null, link: null })} className="px-4 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-semibold flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> 3-Col Ad
-                  </button>
-                </div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">2-Column Ads</h2>
+                <button
+                  onClick={() => {
+                    setAddSectionType('ads_2col');
+                    setShowAddSectionModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4" /> Add New Section
+                </button>
               </div>
-              <h3 className="font-semibold text-sm mb-3 text-muted-foreground">2-Column Ads</h3>
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                {ads2.map((ad) => (
+
+              {sections.filter(s => s.section_type === 'ads_2col').length > 0 && (
+                <div className="mb-6 hidden md:block">
+                  <div className="flex gap-2 flex-wrap mb-4 overflow-x-auto pb-2">
+                    {sections.filter(s => s.section_type === 'ads_2col').map(section => (
+                      <button
+                        key={section.id}
+                        onClick={() => setSelectedAds2SectionId(section.id)}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          selectedAds2SectionId === section.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card border border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {section.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {selectedAds2SectionId ? `Section: ${sections.find(s => s.id === selectedAds2SectionId)?.name}` : 'No section selected'}
+                </p>
+                {selectedAds2SectionId && (
+                  <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => openHeadingEdit(selectedAds2SectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span className="hidden md:inline">Edit Heading</span>
+                      <span className="md:hidden">Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(selectedAds2SectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-destructive text-destructive-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Delete Section</span>
+                      <span className="md:hidden">Delete</span>
+                    </button>
+                    <button onClick={() => setEditAd2({ image_url: null, link: null })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden md:inline">Add Item</span>
+                      <span className="md:hidden">Add</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {ads2
+                  .filter(a => selectedAds2SectionId ? a.section_id === selectedAds2SectionId : true)
+                  .map((ad) => (
                   <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[2/1] bg-muted group">
                     {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => setEditAd2(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
                       <button onClick={() => deleteAd2(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <h3 className="font-semibold text-sm mb-3 text-muted-foreground">3-Column Ads</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {ads3.map((ad) => (
-                  <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[16/9] bg-muted group">
-                    {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setEditAd3(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => deleteAd3(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 ))}
@@ -763,6 +1167,89 @@ export default function AdminDashboard() {
                   </div>
                 </Modal>
               )}
+            </div>
+          )}
+
+          {/* 3-COL ADS */}
+          {tab === 'ads_3col' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">3-Column Ads</h2>
+                <button
+                  onClick={() => {
+                    setAddSectionType('ads_3col');
+                    setShowAddSectionModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4" /> Add New Section
+                </button>
+              </div>
+
+              {sections.filter(s => s.section_type === 'ads_3col').length > 0 && (
+                <div className="mb-6 hidden md:block">
+                  <div className="flex gap-2 flex-wrap mb-4 overflow-x-auto pb-2">
+                    {sections.filter(s => s.section_type === 'ads_3col').map(section => (
+                      <button
+                        key={section.id}
+                        onClick={() => setSelectedAds3SectionId(section.id)}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          selectedAds3SectionId === section.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card border border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {section.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {selectedAds3SectionId ? `Section: ${sections.find(s => s.id === selectedAds3SectionId)?.name}` : 'No section selected'}
+                </p>
+                {selectedAds3SectionId && (
+                  <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => openHeadingEdit(selectedAds3SectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span className="hidden md:inline">Edit Heading</span>
+                      <span className="md:hidden">Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(selectedAds3SectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-destructive text-destructive-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Delete Section</span>
+                      <span className="md:hidden">Delete</span>
+                    </button>
+                    <button onClick={() => setEditAd3({ image_url: null, link: null })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden md:inline">Add Item</span>
+                      <span className="md:hidden">Add</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {ads3
+                  .filter(a => selectedAds3SectionId ? a.section_id === selectedAds3SectionId : true)
+                  .map((ad) => (
+                  <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[16/9] bg-muted group">
+                    {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setEditAd3(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => deleteAd3(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
               {editAd3 && (
                 <Modal title={editAd3.id ? 'Edit 3-Col Ad' : 'Add 3-Col Ad'} onClose={() => setEditAd3(null)}>
                   <div className="space-y-4">
@@ -778,6 +1265,79 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* ADD SECTION MODAL */}
+          {showAddSectionModal && (
+            <Modal
+              title="Add New Section"
+              onClose={() => {
+                setShowAddSectionModal(false);
+                setAddSectionType('');
+                setAddSectionName('');
+              }}
+            >
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Section Name</label>
+                  <input
+                    type="text"
+                    value={addSectionName}
+                    onChange={(e) => setAddSectionName(e.target.value)}
+                    placeholder={`Enter a name for this section`}
+                    className="w-full px-4 py-2.5 rounded-lg border border-input bg-background"
+                  />
+                </div>
+                <button
+                  onClick={handleAddSection}
+                  disabled={addingSectionLoading}
+                  className="w-full px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold disabled:opacity-50"
+                >
+                  {addingSectionLoading ? 'Creating...' : 'Create Section'}
+                </button>
+              </div>
+            </Modal>
+          )}
+
+          {/* EDIT HEADING MODAL */}
+          {editingHeadingSectionId && (
+            <Modal
+              title="Edit Section Heading"
+              onClose={() => {
+                setEditingHeadingSectionId(null);
+                setEditingHeadingText('');
+              }}
+            >
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Heading Text</label>
+                  <input
+                    type="text"
+                    value={editingHeadingText}
+                    onChange={(e) => setEditingHeadingText(e.target.value)}
+                    placeholder="Enter heading text"
+                    className="w-full px-4 py-2.5 rounded-lg border border-input bg-background"
+                  />
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={editingHeadingVisible}
+                    onChange={(e) => setEditingHeadingVisible(e.target.checked)}
+                    id="show-heading-toggle"
+                    className="w-4 h-4 rounded"
+                  />
+                  <label htmlFor="show-heading-toggle" className="text-sm font-medium cursor-pointer">
+                    Show heading on page
+                  </label>
+                </div>
+                <button
+                  onClick={handleSaveHeading}
+                  className="w-full px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold"
+                >
+                  Save Heading
+                </button>
+              </div>
+            </Modal>
+          )}
 
         </div>
       </main>

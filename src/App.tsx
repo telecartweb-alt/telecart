@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,23 +8,33 @@ import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import CategoryDetail from "./pages/CategoryDetail";
+import SubcategoryDetail from "./pages/SubcategoryDetail";
 
 const queryClient = new QueryClient();
+
+const router = createBrowserRouter(
+  [
+    { path: "/", element: <Index /> },
+    { path: "/category/:id", element: <CategoryDetail /> },
+    { path: "/category/:categoryId/subcategory/:subcategoryId", element: <SubcategoryDetail /> },
+    { path: "/admin/login", element: <AdminLogin /> },
+    { path: "/admin", element: <AdminDashboard /> },
+    { path: "*", element: <NotFound /> },
+  ],
+  {
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true,
+    },
+  }
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/category/:id" element={<CategoryDetail />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -13,8 +13,14 @@ interface Offer {
   sort_order: number;
 }
 
-export default function OffersSection() {
+interface OffersSectionProps {
+  sectionId: string;
+}
+
+export default function OffersSection({ sectionId }: OffersSectionProps) {
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [heading, setHeading] = useState('Offers & Discounts');
+  const [showHeading, setShowHeading] = useState(true);
   const isMobile = useIsMobile();
   const visibleCount = isMobile ? 1 : 4;
   const needsCarousel = offers.length > visibleCount;
@@ -30,22 +36,42 @@ export default function OffersSection() {
 
   useEffect(() => {
     const loadOffers = () => {
-      supabase.from('offers').select('*').order('sort_order').then(({ data }) => {
+      supabase.from('offers').select('*').eq('section_id', sectionId).order('sort_order').then(({ data }) => {
         if (data) setOffers(data);
       });
     };
 
-    loadOffers();
+    const loadSection = async () => {
+      const { data } = await supabase
+        .from('page_sections')
+        .select('heading, show_heading')
+        .eq('id', sectionId)
+        .single();
+      
+      if (data) {
+        setHeading(data.heading || 'Offers & Discounts');
+        setShowHeading(data.show_heading !== false);
+      }
+    };
 
-    const channel = supabase
-      .channel('offers_live')
+    loadOffers();
+    loadSection();
+
+    const offersChannel = supabase
+      .channel(`offers_${sectionId}_live`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'offers' }, loadOffers)
       .subscribe();
 
+    const sectionsChannel = supabase
+      .channel(`page_sections_offers_${sectionId}_live`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_sections' }, loadSection)
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      offersChannel.unsubscribe();
+      sectionsChannel.unsubscribe();
     };
-  }, []);
+  }, [sectionId]);
 
   const displayOffers = useMemo(
     () => [...offers, ...offers.slice(0, duplicatedCount)],
