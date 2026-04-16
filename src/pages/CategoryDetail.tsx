@@ -50,7 +50,7 @@ export default function CategoryDetail() {
   const tabs = [
     { label: 'Overview', icon: <Info className="h-4 w-4" /> },
     { label: 'Subcategories', icon: <List className="h-4 w-4" /> },
-    { label: 'Key Features', icon: <Star className="h-4 w-4" /> },
+    
   ];
 
   useEffect(() => {
