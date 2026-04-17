@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import ImageUpload from '@/components/admin/ImageUpload';
 import ImageCropper from '@/components/admin/ImageCropper';
 import FileUpload from '@/components/admin/FileUpload';
+import { Switch } from '@/components/ui/switch';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent
 } from '@dnd-kit/core';
@@ -16,29 +17,52 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   GripVertical, Plus, Pencil, Trash2, LogOut, Home, X, Save,
-  LayoutDashboard, Type, Layers, CreditCard, Tag, Star, Image, Megaphone
+  LayoutDashboard, Type, Layers, CreditCard, Tag, Star, Image, Megaphone, Lock, Unlock
 } from 'lucide-react';
 
-interface PageSection { id: string; section_type: string; name: string; sort_order: number; is_visible: boolean; heading: string; show_heading: boolean; }
+interface PageSection { id: string; section_type: string; name: string; sort_order: number; is_visible: boolean; is_locked: boolean; heading: string; show_heading: boolean; }
 interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; sort_order: number; section_id: string; }
 interface Category { id: string; name: string; icon_url: string | null; bg_color: string; sort_order: number; section_id: string; }
 interface Subcategory { id: string; category_id: string; name: string; link: string | null; video_url?: string | null; sort_order: number; }
 interface CategoryDownload { id: string; category_id: string; file_name: string; file_url: string; file_type: string; }
-interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; section_id: string; }
+interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
 interface Ad2 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; }
 interface Ad3 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; }
 
 type Tab = 'dashboard' | 'hero' | 'sections' | 'cards' | 'categories' | 'offers' | 'ads_2col' | 'ads_3col';
 
-function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+function SortableItem({ id, children, disabled }: { id: string; children: React.ReactNode; disabled?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id, disabled });
   const style = { transform: CSS.Transform.toString(transform), transition };
   return (
     <div ref={setNodeRef} style={style} className="flex items-center gap-3 p-3 bg-card rounded-lg border border-border mb-2">
-      <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground">
-        <GripVertical className="w-5 h-5" />
+      <button
+        {...(disabled ? {} : { ...attributes, ...listeners })}
+        type="button"
+        className={`text-muted-foreground ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-grab hover:text-foreground'}`}
+        aria-label={disabled ? 'Fixed section' : 'Drag to reorder section'}
+      >
+        {disabled ? <Lock className="w-5 h-5" /> : <GripVertical className="w-5 h-5" />}
       </button>
       <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+function SortableOfferItem({ id, children, disabled }: { id: string; children: React.ReactNode; disabled?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id, disabled });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
+      <button
+        {...(disabled ? {} : { ...attributes, ...listeners })}
+        type="button"
+        className={`text-muted-foreground ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-grab hover:text-foreground'}`}
+        aria-label={disabled ? 'Fixed mode disabled' : 'Drag to reorder offer'}
+      >
+        {disabled ? <Lock className="w-4 h-4" /> : <GripVertical className="w-4 h-4" />}
+      </button>
+      {children}
     </div>
   );
 }
@@ -66,6 +90,7 @@ export default function AdminDashboard() {
     addSection,
     deleteSection,
     toggleVisibility,
+    toggleLockState,
     updateSectionName,
     updateSortOrder,
     updateHeading,
@@ -118,18 +143,17 @@ export default function AdminDashboard() {
   // Sync sections from hook to local state
   useEffect(() => {
     setSections(sectionsFromHook);
-    
-    // Set default selected sections (first of each type)
-    const getFirstSectionIdByType = (type: string) => {
-      return sectionsFromHook.find(s => s.section_type === type)?.id || '';
-    };
-    
-    setSelectedCardsSectionId(getFirstSectionIdByType('cards'));
-    setSelectedCategoriesSectionId(getFirstSectionIdByType('categories'));
-    setSelectedOffersSectionId(getFirstSectionIdByType('offers'));
-    setSelectedAds2SectionId(getFirstSectionIdByType('ads_2col'));
-    setSelectedAds3SectionId(getFirstSectionIdByType('ads_3col'));
+
+    const getFirstSectionIdByType = (type: string) => sectionsFromHook.find(s => s.section_type === type)?.id || '';
+
+    setSelectedCardsSectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('cards'));
+    setSelectedCategoriesSectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('categories'));
+    setSelectedOffersSectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('offers'));
+    setSelectedAds2SectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('ads_2col'));
+    setSelectedAds3SectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('ads_3col'));
   }, [sectionsFromHook]);
+
+  const selectedOffersSection = sections.find(s => s.id === selectedOffersSectionId);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate('/admin/login');
@@ -179,9 +203,18 @@ export default function AdminDashboard() {
     if (a3.data) setAds3(a3.data);
   }
 
+  function getSectionDisplayName(section: PageSection | undefined) {
+    return section?.heading?.trim() || section?.name || '';
+  }
+
   async function handleSectionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    const activeSection = sections.find(s => s.id === active.id);
+    const overSection = sections.find(s => s.id === over.id);
+    if (!activeSection || !overSection) return;
+    if (activeSection.is_locked || overSection.is_locked) return;
+
     const oldIndex = sections.findIndex(s => s.id === active.id);
     const newIndex = sections.findIndex(s => s.id === over.id);
     const newSections = arrayMove(sections, oldIndex, newIndex).map((s, i) => ({ ...s, sort_order: i }));
@@ -190,6 +223,33 @@ export default function AdminDashboard() {
       await updateSortOrder(s.id, s.sort_order);
     }
     toast.success('Section order saved!');
+  }
+
+  const selectedOffers = selectedOffersSectionId
+    ? offers.filter((o) => o.section_id === selectedOffersSectionId).sort((a, b) => a.sort_order - b.sort_order)
+    : [];
+  const fixedModeEnabled = selectedOffers.some((o) => o.is_fixed);
+
+  async function handleOfferDragEnd(event: DragEndEvent) {
+    if (!fixedModeEnabled) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = selectedOffers.findIndex((offer) => offer.id === active.id);
+    const newIndex = selectedOffers.findIndex((offer) => offer.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(selectedOffers, oldIndex, newIndex).map((offer, index) => ({ ...offer, sort_order: index }));
+    setOffers((prev) => prev.map((offer) => {
+      const updated = newOrder.find((item) => item.id === offer.id);
+      return updated ? updated : offer;
+    }));
+
+    for (const offer of newOrder) {
+      await updateOfferSortOrder(offer.id, offer.sort_order);
+    }
+
+    toast.success('Offer order saved!');
   }
 
   async function saveHero() {
@@ -236,61 +296,42 @@ export default function AdminDashboard() {
     }
   }
 
-  async function saveCategory() {
-    if (!editCategory) return;
-    if (!editCategory.name?.trim()) {
-      toast.error('Category name is required.');
-      return;
-    }
+  async function updateOfferSortOrder(offerId: string, newOrder: number) {
     try {
-      const cleanedDownloads = editDownloads
-        .filter((download) => download.file_name && download.file_url)
-        .slice(0, 5);
+      const { error } = await supabase.from('offers').update({ sort_order: newOrder }).eq('id', offerId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error updating offer order:', err);
+      toast.error('Failed to save offer order.');
+      return false;
+    }
+  }
 
-      if (editCategory.id) {
-        const { error: catError } = await supabase.from('categories').update({ name: editCategory.name.trim(), icon_url: editCategory.icon_url, bg_color: editCategory.bg_color! }).eq('id', editCategory.id);
-        if (catError) throw catError;
-        
-        await supabase.from('subcategories').delete().eq('category_id', editCategory.id);
-        for (let i = 0; i < editSubs.length; i++) {
-          const { error: subError } = await supabase.from('subcategories').insert({ category_id: editCategory.id, name: editSubs[i].name, link: editSubs[i].link, video_url: editSubs[i].video_url, sort_order: i });
-          if (subError) throw subError;
-        }
-        
-        await supabase.from('category_downloads').delete().eq('category_id', editCategory.id);
-        for (const download of cleanedDownloads) {
-          const { error: downloadError } = await supabase.from('category_downloads').insert({
-            category_id: editCategory.id,
-            file_name: download.file_name!,
-            file_url: download.file_url!,
-            file_type: download.file_type || 'file',
-          });
-          if (downloadError) throw downloadError;
-        }
-      } else {
-        const { data, error: insertError } = await supabase.from('categories').insert({ name: editCategory.name.trim(), icon_url: editCategory.icon_url, bg_color: editCategory.bg_color || '#FFF9C4', sort_order: categories.length, section_id: selectedCategoriesSectionId }).select().single();
-        if (insertError) throw insertError;
-        
-        if (data) {
-          for (let i = 0; i < editSubs.length; i++) {
-            const { error: subError } = await supabase.from('subcategories').insert({ category_id: data.id, name: editSubs[i].name, link: editSubs[i].link, video_url: editSubs[i].video_url, sort_order: i });
-            if (subError) throw subError;
-          }
-          for (const download of cleanedDownloads) {
-            const { error: downloadError } = await supabase.from('category_downloads').insert({
-              category_id: data.id,
-              file_name: download.file_name!,
-              file_url: download.file_url!,
-              file_type: download.file_type || 'file',
-            });
-            if (downloadError) throw downloadError;
-          }
-        }
-      }
-      setEditCategory(null); setEditSubs([]); setEditDownloads([]); loadAll(); toast.success('Category saved!');
+  async function toggleOffersFixedMode(sectionId: string, enabled: boolean) {
+    try {
+      const { error } = await supabase.from('offers').update({ is_fixed: enabled }).eq('section_id', sectionId);
+      if (error) throw error;
+      setOffers((prev) => prev.map((offer) => offer.section_id === sectionId ? { ...offer, is_fixed: enabled } : offer));
+      toast.success(`Fixed Mode ${enabled ? 'enabled' : 'disabled'}!`);
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err);
+      console.error('Error toggling fixed mode:', err);
+      toast.error(`Failed to update Fixed Mode: ${errorMessage}`);
+      return false;
+    }
+  }
+
+  async function deleteCategory(id: string) {
+    try {
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) throw error;
+      loadAll();
+      toast.success('Deleted!');
     } catch (error) {
-      console.error('Error saving category:', error);
-      toast.error('Failed to save category.');
+      console.error('Error deleting category:', error);
+      toast.error('Failed to delete category.');
     }
   }
 
@@ -317,7 +358,16 @@ export default function AdminDashboard() {
         const { error } = await supabase.from('offers').update({ heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link }).eq('id', editOffer.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('offers').insert({ heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link, sort_order: offers.length, section_id: selectedOffersSectionId });
+        const selectedOffersCount = offers.filter((o) => o.section_id === selectedOffersSectionId).length;
+        const { error } = await supabase.from('offers').insert({
+          heading: editOffer.heading.trim(),
+          description: editOffer.description,
+          image_url: editOffer.image_url,
+          link: editOffer.link,
+          sort_order: selectedOffersCount,
+          section_id: selectedOffersSectionId,
+          is_fixed: fixedModeEnabled,
+        });
         if (error) throw error;
       }
       setEditOffer(null); loadAll(); toast.success('Offer saved!');
@@ -620,7 +670,7 @@ export default function AdminDashboard() {
                         else if (s.section_type === 'ads_3col') itemCount = ads3.filter(a => a.section_id === s.id).length;
 
                         return (
-                          <SortableItem key={s.id} id={s.id}>
+                          <SortableItem key={s.id} id={s.id} disabled={s.is_locked}>
                             <div className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors group">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3 flex-1">
@@ -632,17 +682,25 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                    <input
-                                      type="checkbox"
+                                    <Switch
                                       checked={s.is_visible}
-                                      onChange={async (e) => {
-                                        const vis = e.target.checked;
-                                        await toggleVisibility(s.id, vis);
+                                      onCheckedChange={async (checked) => {
+                                        await toggleVisibility(s.id, Boolean(checked));
                                       }}
-                                      className="rounded cursor-pointer"
                                     />
-                                    <span className="text-xs">Visible</span>
+                                    <span className="text-xs">{s.is_visible ? 'ON' : 'OFF'}</span>
                                   </label>
+
+                                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <Switch
+                                      checked={s.is_locked}
+                                      onCheckedChange={async (checked) => {
+                                        await toggleLockState(s.id, Boolean(checked));
+                                      }}
+                                    />
+                                    <span className="text-xs">{s.is_locked ? 'Fixed' : 'Moving'}</span>
+                                  </label>
+
                                   <button
                                     onClick={() => handleDeleteSection(s.id)}
                                     className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
@@ -695,7 +753,7 @@ export default function AdminDashboard() {
                             : 'bg-card border border-border text-foreground hover:bg-muted'
                         }`}
                       >
-                        {section.name}
+                        {getSectionDisplayName(section)}
                       </button>
                     ))}
                   </div>
@@ -704,7 +762,7 @@ export default function AdminDashboard() {
 
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  {selectedCardsSectionId ? `Adding cards to: ${sections.find(s => s.id === selectedCardsSectionId)?.name}` : 'No section selected'}
+                  {selectedCardsSectionId ? `Adding cards to: ${getSectionDisplayName(sections.find(s => s.id === selectedCardsSectionId))}` : 'No section selected'}
                 </p>
                 {selectedCardsSectionId && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
@@ -800,7 +858,7 @@ export default function AdminDashboard() {
                             : 'bg-card border border-border text-foreground hover:bg-muted'
                         }`}
                       >
-                        {section.name}
+                        {getSectionDisplayName(section)}
                       </button>
                     ))}
                   </div>
@@ -809,7 +867,7 @@ export default function AdminDashboard() {
 
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  {selectedCategoriesSectionId ? `Adding categories to: ${sections.find(s => s.id === selectedCategoriesSectionId)?.name}` : 'No section selected'}
+                  {selectedCategoriesSectionId ? `Adding categories to: ${getSectionDisplayName(sections.find(s => s.id === selectedCategoriesSectionId))}` : 'No section selected'}
                 </p>
                 {selectedCategoriesSectionId && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
@@ -996,17 +1054,42 @@ export default function AdminDashboard() {
                             : 'bg-card border border-border text-foreground hover:bg-muted'
                         }`}
                       >
-                        {section.name}
+                        {getSectionDisplayName(section)}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  {selectedOffersSectionId ? `Adding offers to: ${sections.find(s => s.id === selectedOffersSectionId)?.name}` : 'No section selected'}
-                </p>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    {selectedOffersSectionId ? `Adding offers to: ${getSectionDisplayName(selectedOffersSection)}` : 'No section selected'}
+                  </p>
+                  {selectedOffersSection && (
+                    <div className="flex flex-wrap gap-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Switch
+                          checked={selectedOffersSection.is_visible}
+                          onCheckedChange={async (checked) => {
+                            await toggleVisibility(selectedOffersSection.id, Boolean(checked));
+                          }}
+                        />
+                        <span className="text-xs">{selectedOffersSection.is_visible ? 'ON' : 'OFF'}</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Switch
+                          checked={fixedModeEnabled}
+                          onCheckedChange={async (checked) => {
+                            await toggleOffersFixedMode(selectedOffersSection.id, Boolean(checked));
+                          }}
+                        />
+                        <span className="text-xs">Fixed Mode</span>
+                        <span className="text-xs">{fixedModeEnabled ? 'ON' : 'OFF'}</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
                 {selectedOffersSectionId && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                     <button
@@ -1037,21 +1120,39 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="grid gap-3">
-                {offers
-                  .filter(o => selectedOffersSectionId ? o.section_id === selectedOffersSectionId : true)
-                  .map((offer) => (
-                  <div key={offer.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
-                    {offer.image_url && <img src={offer.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm">{offer.heading}</h3>
-                      {offer.description && <p className="text-xs text-muted-foreground truncate">{offer.description}</p>}
+              {fixedModeEnabled ? (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleOfferDragEnd}>
+                  <SortableContext items={selectedOffers.map((offer) => offer.id)} strategy={verticalListSortingStrategy}>
+                    <div className="grid gap-3">
+                      {selectedOffers.map((offer) => (
+                        <SortableOfferItem key={offer.id} id={offer.id} disabled={!fixedModeEnabled}>
+                          {offer.image_url && <img src={offer.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm">{offer.heading}</h3>
+                            {offer.description && <p className="text-xs text-muted-foreground truncate">{offer.description}</p>}
+                          </div>
+                          <button onClick={() => setEditOffer(offer)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => deleteOffer(offer.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                        </SortableOfferItem>
+                      ))}
                     </div>
-                    <button onClick={() => setEditOffer(offer)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => deleteOffer(offer.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                ))}
-              </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <div className="grid gap-3">
+                  {selectedOffers.map((offer) => (
+                    <div key={offer.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
+                      {offer.image_url && <img src={offer.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm">{offer.heading}</h3>
+                        {offer.description && <p className="text-xs text-muted-foreground truncate">{offer.description}</p>}
+                      </div>
+                      <button onClick={() => setEditOffer(offer)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => deleteOffer(offer.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {editOffer && (
                 <Modal title={editOffer.id ? 'Edit Offer' : 'Add Offer'} onClose={() => setEditOffer(null)}>
                   <div className="space-y-4">
@@ -1104,7 +1205,7 @@ export default function AdminDashboard() {
                             : 'bg-card border border-border text-foreground hover:bg-muted'
                         }`}
                       >
-                        {section.name}
+                        {getSectionDisplayName(section)}
                       </button>
                     ))}
                   </div>
@@ -1113,7 +1214,7 @@ export default function AdminDashboard() {
 
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  {selectedAds2SectionId ? `Section: ${sections.find(s => s.id === selectedAds2SectionId)?.name}` : 'No section selected'}
+                  {selectedAds2SectionId ? `Section: ${getSectionDisplayName(sections.find(s => s.id === selectedAds2SectionId))}` : 'No section selected'}
                 </p>
                 {selectedAds2SectionId && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
@@ -1199,7 +1300,7 @@ export default function AdminDashboard() {
                             : 'bg-card border border-border text-foreground hover:bg-muted'
                         }`}
                       >
-                        {section.name}
+                        {getSectionDisplayName(section)}
                       </button>
                     ))}
                   </div>
@@ -1208,7 +1309,7 @@ export default function AdminDashboard() {
 
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  {selectedAds3SectionId ? `Section: ${sections.find(s => s.id === selectedAds3SectionId)?.name}` : 'No section selected'}
+                  {selectedAds3SectionId ? `Section: ${getSectionDisplayName(sections.find(s => s.id === selectedAds3SectionId))}` : 'No section selected'}
                 </p>
                 {selectedAds3SectionId && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">

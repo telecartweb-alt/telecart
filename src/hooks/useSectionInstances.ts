@@ -94,6 +94,7 @@ export const useSectionInstances = () => {
           name,
           sort_order: newSort,
           is_visible: true,
+          is_locked: false,
         })
         .select()
         .single();
@@ -149,6 +150,26 @@ export const useSectionInstances = () => {
       const message = err instanceof Error ? err.message : 'Failed to update visibility';
       setError(message);
       console.error('Error toggling visibility:', err);
+      return false;
+    }
+  };
+
+  // Toggle section lock state
+  const toggleLockState = async (sectionId: string, isLocked: boolean): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('page_sections')
+        .update({ is_locked: isLocked })
+        .eq('id', sectionId);
+
+      if (error) throw error;
+      setError(null);
+      await fetchSections();
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update lock state';
+      setError(message);
+      console.error('Error toggling lock state:', err);
       return false;
     }
   };
@@ -252,6 +273,7 @@ export const useSectionInstances = () => {
     addSection,
     deleteSection,
     toggleVisibility,
+    toggleLockState,
     updateSectionName,
     updateSortOrder,
     updateHeading,

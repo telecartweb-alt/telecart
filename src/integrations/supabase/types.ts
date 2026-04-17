@@ -270,6 +270,7 @@ export type Database = {
           heading: string
           id: string
           image_url: string | null
+          is_fixed: boolean
           link: string | null
           section_id: string
           sort_order: number
@@ -281,6 +282,7 @@ export type Database = {
           heading: string
           id?: string
           image_url?: string | null
+          is_fixed?: boolean
           link?: string | null
           section_id: string
           sort_order?: number
@@ -292,6 +294,7 @@ export type Database = {
           heading?: string
           id?: string
           image_url?: string | null
+          is_fixed?: boolean
           link?: string | null
           section_id?: string
           sort_order?: number
@@ -304,6 +307,7 @@ export type Database = {
           created_at: string
           heading: string
           id: string
+          is_locked: boolean
           is_visible: boolean
           name: string
           section_type: string
@@ -314,6 +318,7 @@ export type Database = {
           created_at?: string
           heading?: string
           id?: string
+          is_locked?: boolean
           is_visible?: boolean
           name: string
           section_type: string
@@ -324,6 +329,7 @@ export type Database = {
           created_at?: string
           heading?: string
           id?: string
+          is_locked?: boolean
           is_visible?: boolean
           name?: string
           section_type?: string

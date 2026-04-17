@@ -11,6 +11,7 @@ interface Offer {
   description: string | null;
   link: string | null;
   sort_order: number;
+  is_fixed: boolean;
 }
 
 interface OffersSectionProps {
@@ -23,7 +24,9 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
   const [showHeading, setShowHeading] = useState(true);
   const isMobile = useIsMobile();
   const visibleCount = isMobile ? 1 : 4;
-  const needsCarousel = offers.length > visibleCount;
+  const fixedMode = offers.some((offer) => offer.is_fixed);
+  const offersToDisplay = fixedMode ? offers.slice(0, 4) : offers;
+  const needsCarousel = !fixedMode && offers.length > visibleCount;
 
   const {
     index,
@@ -74,8 +77,8 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
   }, [sectionId]);
 
   const displayOffers = useMemo(
-    () => [...offers, ...offers.slice(0, duplicatedCount)],
-    [offers, duplicatedCount],
+    () => !fixedMode && needsCarousel ? [...offers, ...offers.slice(0, duplicatedCount)] : offersToDisplay,
+    [offers, duplicatedCount, fixedMode, needsCarousel, offersToDisplay],
   );
 
   if (offers.length === 0) return null;
@@ -143,7 +146,7 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-            {offers.map((offer) => (
+            {offersToDisplay.map((offer) => (
               <div key={offer.id}>
                 <a href={offer.link || '#'} className="block group">
                   {offer.image_url && (

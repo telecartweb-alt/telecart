@@ -69,7 +69,7 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
 
     const sectionsChannel = supabase
       .channel(`page_sections_cat_${sectionId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_sections' }, loadSection)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_sections', filter: `id=eq.${sectionId}` }, () => loadSection())
       .subscribe();
 
     return () => {
@@ -83,9 +83,11 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
   return (
     <section id="categories" className="py-12 md:py-16">
       <div className="mx-auto max-w-[1580px] px-6 md:px-8 lg:px-12">
-        <h2 className="mb-8 text-xl font-semibold md:text-4xl">
-          Explore companies by category
-        </h2>
+        {showHeading && (
+          <h2 className="mb-8 text-xl font-semibold md:text-4xl">
+            {heading}
+          </h2>
+        )}
 
         {/* Mobile: Collapsible View */}
         {isMobile ? (
