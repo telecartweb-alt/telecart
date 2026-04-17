@@ -87,9 +87,11 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
     <section id="offers" className="py-10 md:py-14">
       <div className="container mx-auto px-4 md:px-8 lg:px-12">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl md:text-3xl font-semibold">
-            Offers & Discounts
-          </h2>
+          {showHeading && (
+            <h2 className="text-2xl md:text-3xl font-semibold">
+              {heading}
+            </h2>
+          )}
 
           {needsCarousel && (
             <div className="hidden gap-2 md:flex">

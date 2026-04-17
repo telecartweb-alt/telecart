@@ -125,18 +125,18 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
                       style={{ width: `${slideWidth}%` }}
                     >
                       <div
-                        className={`h-[240px] rounded-[28px] pt-10 pl-8 pr-6 pb-6 transition-all duration-300 ${
+                        className={`h-[240px] rounded-[28px] pt-8 pl-8 pr-6 pb-6 transition-all duration-300 flex flex-col ${
                           isRaised
                             ? 'bg-card shadow-[0_20px_50px_rgba(15,23,42,0.12)]'
                             : 'bg-[#fcf9f5]'
                         }`}
                       >
                         {card.logo_url && (
-                          <div className="mb-5 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl">
+                          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
                             <img
                               src={card.logo_url}
                               alt={card.title}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-contain"
                             />
                           </div>
                         )}
@@ -158,18 +158,18 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
             {cards.map((card, index) => (
               <div key={card.id} className={`${cards.length < 3 ? 'w-[calc(33.333%-10px)]' : 'flex-1'} px-2.5`}>
                 <div
-                  className={`h-[240px] rounded-[28px] pt-10 pl-8 pr-6 pb-6 transition-all duration-300 ${
+                  className={`h-[240px] rounded-[28px] pt-8 pl-8 pr-6 pb-6 transition-all duration-300 flex flex-col ${
                     index === 1
                       ? 'bg-card shadow-[0_20px_50px_rgba(15,23,42,0.12)]'
                       : 'bg-[#fcf9f5]'
                   }`}
                 >
                   {card.logo_url && (
-                    <div className="mb-5 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl">
+                    <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
                       <img
                         src={card.logo_url}
                         alt={card.title}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                       />
                     </div>
                   )}

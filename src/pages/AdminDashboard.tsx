@@ -347,6 +347,95 @@ export default function AdminDashboard() {
     }
   }
 
+  async function saveCategory() {
+    if (!editCategory) return;
+    if (!editCategory.name?.trim()) {
+      toast.error('Category name is required.');
+      return;
+    }
+    if (!selectedCategoriesSectionId) {
+      toast.error('Please select a section first.');
+      return;
+    }
+
+    try {
+      let categoryId = editCategory.id;
+
+      // Save category
+      if (categoryId) {
+        // Update existing category
+        const { error: catError } = await supabase
+          .from('categories')
+          .update({
+            name: editCategory.name,
+            icon_url: editCategory.icon_url,
+            bg_color: editCategory.bg_color,
+            section_id: selectedCategoriesSectionId
+          })
+          .eq('id', categoryId);
+        if (catError) throw catError;
+      } else {
+        // Create new category
+        const { data: newCat, error: catError } = await supabase
+          .from('categories')
+          .insert({
+            name: editCategory.name,
+            icon_url: editCategory.icon_url,
+            bg_color: editCategory.bg_color,
+            section_id: selectedCategoriesSectionId,
+            sort_order: categories.length
+          })
+          .select()
+          .single();
+        if (catError) throw catError;
+        categoryId = newCat.id;
+      }
+
+      // Save subcategories
+      if (categoryId) {
+        // Delete existing subcategories
+        await supabase.from('subcategories').delete().eq('category_id', categoryId);
+
+        // Insert new subcategories
+        if (editSubs.length > 0) {
+          const subsToInsert = editSubs.map((sub, index) => ({
+            id: sub.id,
+            category_id: categoryId,
+            name: sub.name,
+            link: sub.link,
+            video_url: sub.video_url,
+            sort_order: index
+          }));
+          const { error: subError } = await supabase.from('subcategories').insert(subsToInsert);
+          if (subError) throw subError;
+        }
+
+        // Save downloads
+        // Delete existing downloads
+        await supabase.from('category_downloads').delete().eq('category_id', categoryId);
+
+        // Insert new downloads
+        if (editDownloads.length > 0) {
+          const downloadsToInsert = editDownloads.map(download => ({
+            ...download,
+            category_id: categoryId
+          }));
+          const { error: downloadError } = await supabase.from('category_downloads').insert(downloadsToInsert);
+          if (downloadError) throw downloadError;
+        }
+      }
+
+      loadAll();
+      setEditCategory(null);
+      setEditSubs([]);
+      setEditDownloads([]);
+      toast.success('Category saved!');
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error('Failed to save category.');
+    }
+  }
+
   async function saveOffer() {
     if (!editOffer) return;
     if (!editOffer.heading?.trim()) {
