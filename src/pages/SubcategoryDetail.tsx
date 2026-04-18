@@ -28,7 +28,7 @@ interface Subcategory {
   id: string;
   name: string;
   link: string | null;
-  video_url: string | null;
+  video_url?: string | null;
   category_id: string;
 }
 

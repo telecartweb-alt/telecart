@@ -17,19 +17,19 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   GripVertical, Plus, Pencil, Trash2, LogOut, Home, X, Save,
-  LayoutDashboard, Type, Layers, CreditCard, Tag, Star, Image, Megaphone, Lock, Unlock
+  LayoutDashboard, Type, Layers, CreditCard, Tag, Star, Image, Lock, Unlock
 } from 'lucide-react';
 
 interface PageSection { id: string; section_type: string; name: string; sort_order: number; is_visible: boolean; is_locked: boolean; heading: string; show_heading: boolean; }
-interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; sort_order: number; section_id: string; }
+interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
 interface Category { id: string; name: string; icon_url: string | null; bg_color: string; sort_order: number; section_id: string; }
 interface Subcategory { id: string; category_id: string; name: string; link: string | null; video_url?: string | null; sort_order: number; }
 interface CategoryDownload { id: string; category_id: string; file_name: string; file_url: string; file_type: string; }
 interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
-interface Ad2 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; }
-interface Ad3 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; }
+interface Ad2 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
+interface Ad3 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
 
-type Tab = 'dashboard' | 'hero' | 'sections' | 'cards' | 'categories' | 'offers' | 'ads_2col' | 'ads_3col';
+type Tab = 'dashboard' | 'hero' | 'sections' | 'cards' | 'categories' | 'offers' | 'ads_1col' | 'ads_2col' | 'ads_3col';
 
 function SortableItem({ id, children, disabled }: { id: string; children: React.ReactNode; disabled?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id, disabled });
@@ -74,6 +74,7 @@ const SIDEBAR_ITEMS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: 'cards', label: 'Feature Cards', icon: <CreditCard className="w-5 h-5" /> },
   { key: 'categories', label: 'Categories', icon: <Tag className="w-5 h-5" /> },
   { key: 'offers', label: 'Offers', icon: <Star className="w-5 h-5" /> },
+  { key: 'ads_1col', label: '1-Col Ad', icon: <Image className="w-5 h-5" /> },
   { key: 'ads_2col', label: '2-Col Ads', icon: <Image className="w-5 h-5" /> },
   { key: 'ads_3col', label: '3-Col Ads', icon: <Image className="w-5 h-5" /> },
 ];
@@ -115,6 +116,7 @@ export default function AdminDashboard() {
   const [editOffer, setEditOffer] = useState<Partial<Offer> | null>(null);
   const [editAd2, setEditAd2] = useState<Partial<Ad2> | null>(null);
   const [editAd3, setEditAd3] = useState<Partial<Ad3> | null>(null);
+  const [editAd1, setEditAd1] = useState<Partial<Ad2> | null>(null);
 
   // Modal state for adding sections
   const [showAddSectionModal, setShowAddSectionModal] = useState(false);
@@ -137,6 +139,7 @@ export default function AdminDashboard() {
   const [selectedOffersSectionId, setSelectedOffersSectionId] = useState<string>('');
   const [selectedAds2SectionId, setSelectedAds2SectionId] = useState<string>('');
   const [selectedAds3SectionId, setSelectedAds3SectionId] = useState<string>('');
+  const [selectedAds1SectionId, setSelectedAds1SectionId] = useState<string>('');
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -151,9 +154,13 @@ export default function AdminDashboard() {
     setSelectedOffersSectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('offers'));
     setSelectedAds2SectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('ads_2col'));
     setSelectedAds3SectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('ads_3col'));
+    setSelectedAds1SectionId((current) => current && sectionsFromHook.some(s => s.id === current) ? current : getFirstSectionIdByType('ads_1col'));
   }, [sectionsFromHook]);
 
+  const selectedCardsSection = sections.find(s => s.id === selectedCardsSectionId);
   const selectedOffersSection = sections.find(s => s.id === selectedOffersSectionId);
+  const selectedAds2Section = sections.find(s => s.id === selectedAds2SectionId);
+  const selectedAds3Section = sections.find(s => s.id === selectedAds3SectionId) || sections.find(s => s.section_type === 'ads_3col');
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate('/admin/login');
@@ -194,13 +201,13 @@ export default function AdminDashboard() {
     ]);
     if (s.data) setSections(s.data);
     if (h.data) { setHeroText(h.data.main_text); setHeroWords(h.data.animated_words.join(', ')); }
-    if (c.data) setCards(c.data);
+    if (c.data) setCards((c.data as any[]).map(card => ({ ...card, link: card.link ?? null, is_fixed: card.is_fixed ?? false })));
     if (cat.data) setCategories(cat.data);
     if (sub.data) setSubcategories(sub.data);
     if (downloads.data) setCategoryDownloads(downloads.data);
-    if (o.data) setOffers(o.data);
-    if (a2.data) setAds2(a2.data);
-    if (a3.data) setAds3(a3.data);
+    if (o.data) setOffers((o.data as any[]).map(offer => ({ ...offer, is_fixed: offer.is_fixed ?? false })));
+    if (a2.data) setAds2((a2.data as any[]).map(ad => ({ ...ad, is_fixed: ad.is_fixed ?? false })));
+    if (a3.data) setAds3((a3.data as any[]).map(ad => ({ ...ad, is_fixed: ad.is_fixed ?? false })));
   }
 
   function getSectionDisplayName(section: PageSection | undefined) {
@@ -228,10 +235,30 @@ export default function AdminDashboard() {
   const selectedOffers = selectedOffersSectionId
     ? offers.filter((o) => o.section_id === selectedOffersSectionId).sort((a, b) => a.sort_order - b.sort_order)
     : [];
-  const fixedModeEnabled = selectedOffers.some((o) => o.is_fixed);
+  const offersFixedModeEnabled = selectedOffers.some((o) => o.is_fixed);
+
+  const selectedCards = selectedCardsSectionId
+    ? cards.filter((c) => c.section_id === selectedCardsSectionId).sort((a, b) => a.sort_order - b.sort_order)
+    : [];
+  const cardsFixedModeEnabled = selectedCards.some((c) => c.is_fixed);
+
+  const selectedAds2 = selectedAds2SectionId
+    ? ads2.filter((a) => a.section_id === selectedAds2SectionId).sort((a, b) => a.sort_order - b.sort_order)
+    : [];
+  const ads2FixedModeEnabled = selectedAds2.some((a) => a.is_fixed);
+
+  const selectedAds3 = selectedAds3SectionId
+    ? ads3.filter((a) => a.section_id === selectedAds3SectionId).sort((a, b) => a.sort_order - b.sort_order)
+    : [];
+  const ads3FixedModeEnabled = selectedAds3.some((a) => a.is_fixed);
+
+  const selectedAds1 = selectedAds1SectionId
+    ? ads2.filter((a) => a.section_id === selectedAds1SectionId).sort((a, b) => a.sort_order - b.sort_order)
+    : [];
+  const ads1FixedModeEnabled = selectedAds1.some((a) => a.is_fixed);
 
   async function handleOfferDragEnd(event: DragEndEvent) {
-    if (!fixedModeEnabled) return;
+    if (!offersFixedModeEnabled) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -252,6 +279,94 @@ export default function AdminDashboard() {
     toast.success('Offer order saved!');
   }
 
+  async function handleCardDragEnd(event: DragEndEvent) {
+    if (!cardsFixedModeEnabled) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = selectedCards.findIndex((card) => card.id === active.id);
+    const newIndex = selectedCards.findIndex((card) => card.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(selectedCards, oldIndex, newIndex).map((card, index) => ({ ...card, sort_order: index }));
+    setCards((prev) => prev.map((card) => {
+      const updated = newOrder.find((item) => item.id === card.id);
+      return updated ? updated : card;
+    }));
+
+    for (const card of newOrder) {
+      await updateCardSortOrder(card.id, card.sort_order);
+    }
+
+    toast.success('Card order saved!');
+  }
+
+  async function handleAds2DragEnd(event: DragEndEvent) {
+    if (!ads2FixedModeEnabled) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = selectedAds2.findIndex((ad) => ad.id === active.id);
+    const newIndex = selectedAds2.findIndex((ad) => ad.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(selectedAds2, oldIndex, newIndex).map((ad, index) => ({ ...ad, sort_order: index }));
+    setAds2((prev) => prev.map((ad) => {
+      const updated = newOrder.find((item) => item.id === ad.id);
+      return updated ? updated : ad;
+    }));
+
+    for (const ad of newOrder) {
+      await updateAds2SortOrder(ad.id, ad.sort_order);
+    }
+
+    toast.success('Ad order saved!');
+  }
+
+  async function handleAds1DragEnd(event: DragEndEvent) {
+    if (!ads1FixedModeEnabled) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = selectedAds1.findIndex((ad) => ad.id === active.id);
+    const newIndex = selectedAds1.findIndex((ad) => ad.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(selectedAds1, oldIndex, newIndex).map((ad, index) => ({ ...ad, sort_order: index }));
+    setAds2((prev) => prev.map((ad) => {
+      const updated = newOrder.find((item) => item.id === ad.id);
+      return updated ? updated : ad;
+    }));
+
+    for (const ad of newOrder) {
+      await updateAds2SortOrder(ad.id, ad.sort_order);
+    }
+
+    toast.success('Ad order saved!');
+  }
+
+  async function handleAds3DragEnd(event: DragEndEvent) {
+    if (!ads3FixedModeEnabled) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = selectedAds3.findIndex((ad) => ad.id === active.id);
+    const newIndex = selectedAds3.findIndex((ad) => ad.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(selectedAds3, oldIndex, newIndex).map((ad, index) => ({ ...ad, sort_order: index }));
+    setAds3((prev) => prev.map((ad) => {
+      const updated = newOrder.find((item) => item.id === ad.id);
+      return updated ? updated : ad;
+    }));
+
+    for (const ad of newOrder) {
+      await updateAds3SortOrder(ad.id, ad.sort_order);
+    }
+
+    toast.success('Ad order saved!');
+  }
+
   async function saveHero() {
     const words = heroWords.split(',').map(w => w.trim()).filter(Boolean);
     const { data } = await supabase.from('hero_settings').select('id').limit(1).single();
@@ -269,10 +384,18 @@ export default function AdminDashboard() {
     }
     try {
       if (editCard.id) {
-        const { error } = await supabase.from('featured_cards').update({ title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url }).eq('id', editCard.id);
+        const updateData: any = { title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, link: editCard.link || null };
+        if (cardsFixedModeEnabled !== undefined) {
+          updateData.is_fixed = cardsFixedModeEnabled;
+        }
+        const { error } = await supabase.from('featured_cards').update(updateData).eq('id', editCard.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('featured_cards').insert({ title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, sort_order: cards.length, section_id: selectedCardsSectionId });
+        const insertData: any = { title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, link: editCard.link || null, sort_order: cards.length, section_id: selectedCardsSectionId };
+        if (cardsFixedModeEnabled !== undefined) {
+          insertData.is_fixed = cardsFixedModeEnabled;
+        }
+        const { error } = await supabase.from('featured_cards').insert(insertData);
         if (error) throw error;
       }
       setEditCard(null);
@@ -308,6 +431,42 @@ export default function AdminDashboard() {
     }
   }
 
+  async function updateCardSortOrder(cardId: string, newOrder: number) {
+    try {
+      const { error } = await supabase.from('featured_cards').update({ sort_order: newOrder }).eq('id', cardId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error updating card order:', err);
+      toast.error('Failed to save card order.');
+      return false;
+    }
+  }
+
+  async function updateAds2SortOrder(adId: string, newOrder: number) {
+    try {
+      const { error } = await supabase.from('ads_2col').update({ sort_order: newOrder }).eq('id', adId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error updating ad order:', err);
+      toast.error('Failed to save ad order.');
+      return false;
+    }
+  }
+
+  async function updateAds3SortOrder(adId: string, newOrder: number) {
+    try {
+      const { error } = await supabase.from('ads_3col').update({ sort_order: newOrder }).eq('id', adId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error updating ad order:', err);
+      toast.error('Failed to save ad order.');
+      return false;
+    }
+  }
+
   async function toggleOffersFixedMode(sectionId: string, enabled: boolean) {
     try {
       const { error } = await supabase.from('offers').update({ is_fixed: enabled }).eq('section_id', sectionId);
@@ -323,15 +482,48 @@ export default function AdminDashboard() {
     }
   }
 
-  async function deleteCategory(id: string) {
+  async function toggleCardsFixedMode(sectionId: string, enabled: boolean) {
     try {
-      const { error } = await supabase.from('categories').delete().eq('id', id);
+      const { error } = await supabase.from('featured_cards').update({ is_fixed: enabled } as any).eq('section_id', sectionId);
       if (error) throw error;
-      loadAll();
-      toast.success('Deleted!');
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      toast.error('Failed to delete category.');
+      setCards((prev) => prev.map((card) => card.section_id === sectionId ? { ...card, is_fixed: enabled } : card));
+      toast.success(`Fixed Mode ${enabled ? 'enabled' : 'disabled'}!`);
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err);
+      console.error('Error toggling fixed mode:', err);
+      toast.error(`Failed to update Fixed Mode: ${errorMessage}`);
+      return false;
+    }
+  }
+
+  async function toggleAds2FixedMode(sectionId: string, enabled: boolean) {
+    try {
+      const { error } = await supabase.from('ads_2col').update({ is_fixed: enabled } as any).eq('section_id', sectionId);
+      if (error) throw error;
+      setAds2((prev) => prev.map((ad) => ad.section_id === sectionId ? { ...ad, is_fixed: enabled } : ad));
+      toast.success(`Fixed Mode ${enabled ? 'enabled' : 'disabled'}!`);
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err);
+      console.error('Error toggling fixed mode:', err);
+      toast.error(`Failed to update Fixed Mode: ${errorMessage}`);
+      return false;
+    }
+  }
+
+  async function toggleAds3FixedMode(sectionId: string, enabled: boolean) {
+    try {
+      const { error } = await supabase.from('ads_3col').update({ is_fixed: enabled } as any).eq('section_id', sectionId);
+      if (error) throw error;
+      setAds3((prev) => prev.map((ad) => ad.section_id === sectionId ? { ...ad, is_fixed: enabled } : ad));
+      toast.success(`Fixed Mode ${enabled ? 'enabled' : 'disabled'}!`);
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err && typeof err === 'object' && 'message' in err ? (err as any).message : String(err);
+      console.error('Error toggling fixed mode:', err);
+      toast.error(`Failed to update Fixed Mode: ${errorMessage}`);
+      return false;
     }
   }
 
@@ -416,12 +608,17 @@ export default function AdminDashboard() {
 
         // Insert new downloads
         if (editDownloads.length > 0) {
-          const downloadsToInsert = editDownloads.map(download => ({
-            ...download,
-            category_id: categoryId
+          const validDownloads = editDownloads.filter(download => download.file_name && download.file_url && download.file_type);
+          const downloadsToInsert = validDownloads.map(download => ({
+            category_id: categoryId,
+            file_name: download.file_name!,
+            file_url: download.file_url!,
+            file_type: download.file_type!
           }));
-          const { error: downloadError } = await supabase.from('category_downloads').insert(downloadsToInsert);
-          if (downloadError) throw downloadError;
+          if (downloadsToInsert.length > 0) {
+            const { error: downloadError } = await supabase.from('category_downloads').insert(downloadsToInsert);
+            if (downloadError) throw downloadError;
+          }
         }
       }
 
@@ -443,20 +640,28 @@ export default function AdminDashboard() {
       return;
     }
     try {
+      const selectedOffersCount = selectedOffers.length;
+
       if (editOffer.id) {
-        const { error } = await supabase.from('offers').update({ heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link }).eq('id', editOffer.id);
+        const updateData: any = { heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link };
+        if (offersFixedModeEnabled !== undefined) {
+          updateData.is_fixed = offersFixedModeEnabled;
+        }
+        const { error } = await supabase.from('offers').update(updateData).eq('id', editOffer.id);
         if (error) throw error;
       } else {
-        const selectedOffersCount = offers.filter((o) => o.section_id === selectedOffersSectionId).length;
-        const { error } = await supabase.from('offers').insert({
+        const insertData: any = {
           heading: editOffer.heading.trim(),
           description: editOffer.description,
           image_url: editOffer.image_url,
           link: editOffer.link,
           sort_order: selectedOffersCount,
           section_id: selectedOffersSectionId,
-          is_fixed: fixedModeEnabled,
-        });
+        };
+        if (offersFixedModeEnabled !== undefined) {
+          insertData.is_fixed = offersFixedModeEnabled;
+        }
+        const { error } = await supabase.from('offers').insert(insertData);
         if (error) throw error;
       }
       setEditOffer(null); loadAll(); toast.success('Offer saved!');
@@ -482,13 +687,46 @@ export default function AdminDashboard() {
     if (!editAd2) return;
     try {
       if (editAd2.id) {
-        const { error } = await supabase.from('ads_2col').update({ image_url: editAd2.image_url, link: editAd2.link }).eq('id', editAd2.id);
+        const updateData: any = { image_url: editAd2.image_url, link: editAd2.link };
+        if (ads2FixedModeEnabled !== undefined) {
+          updateData.is_fixed = ads2FixedModeEnabled;
+        }
+        const { error } = await supabase.from('ads_2col').update(updateData).eq('id', editAd2.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('ads_2col').insert({ image_url: editAd2.image_url, link: editAd2.link, sort_order: ads2.length, section_id: selectedAds2SectionId });
+        const insertData: any = { image_url: editAd2.image_url, link: editAd2.link, sort_order: ads2.length, section_id: selectedAds2SectionId };
+        if (ads2FixedModeEnabled !== undefined) {
+          insertData.is_fixed = ads2FixedModeEnabled;
+        }
+        const { error } = await supabase.from('ads_2col').insert(insertData);
         if (error) throw error;
       }
       setEditAd2(null); loadAll(); toast.success('Ad saved!');
+    } catch (error) {
+      console.error('Error saving ad:', error);
+      toast.error('Failed to save ad.');
+    }
+  }
+
+  async function saveAd1() {
+    if (!editAd1) return;
+    try {
+      if (editAd1.id) {
+        const updateData: any = { image_url: editAd1.image_url, link: editAd1.link };
+        if (ads1FixedModeEnabled !== undefined) {
+          updateData.is_fixed = ads1FixedModeEnabled;
+        }
+        const { error } = await supabase.from('ads_2col').update(updateData).eq('id', editAd1.id);
+        if (error) throw error;
+      } else {
+        const insertData: any = { image_url: editAd1.image_url, link: editAd1.link, sort_order: selectedAds1.length, section_id: selectedAds1SectionId };
+        if (ads1FixedModeEnabled !== undefined) {
+          insertData.is_fixed = ads1FixedModeEnabled;
+        }
+        const { error } = await supabase.from('ads_2col').insert(insertData);
+        if (error) throw error;
+      }
+      setEditAd1(null); loadAll(); toast.success('Ad saved!');
     } catch (error) {
       console.error('Error saving ad:', error);
       toast.error('Failed to save ad.');
@@ -511,10 +749,18 @@ export default function AdminDashboard() {
     if (!editAd3) return;
     try {
       if (editAd3.id) {
-        const { error } = await supabase.from('ads_3col').update({ image_url: editAd3.image_url, link: editAd3.link }).eq('id', editAd3.id);
+        const updateData: any = { image_url: editAd3.image_url, link: editAd3.link };
+        if (ads3FixedModeEnabled !== undefined) {
+          updateData.is_fixed = ads3FixedModeEnabled;
+        }
+        const { error } = await supabase.from('ads_3col').update(updateData).eq('id', editAd3.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('ads_3col').insert({ image_url: editAd3.image_url, link: editAd3.link, sort_order: ads3.length, section_id: selectedAds3SectionId });
+        const insertData: any = { image_url: editAd3.image_url, link: editAd3.link, sort_order: ads3.length, section_id: selectedAds3SectionId };
+        if (ads3FixedModeEnabled !== undefined) {
+          insertData.is_fixed = ads3FixedModeEnabled;
+        }
+        const { error } = await supabase.from('ads_3col').insert(insertData);
         if (error) throw error;
       }
       setEditAd3(null); loadAll(); toast.success('Ad saved!');
@@ -616,7 +862,7 @@ export default function AdminDashboard() {
 
   const sectionLabels: Record<string, string> = {
     hero: '🏠 Hero Section', cards: '🃏 Featured Cards', categories: '📂 Categories',
-    offers: '🎁 Offers & Discounts', ads_2col: '📰 2-Column Ads', ads_3col: '📰 3-Column Ads',
+    offers: '🎁 Offers & Discounts', ads_1col: '📰 1-Column Ad', ads_2col: '📰 2-Column Ads', ads_3col: '📰 3-Column Ads',
   };
 
   return (
@@ -748,7 +994,7 @@ export default function AdminDashboard() {
                     items={sections.map(s => s.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    <div className="space-y-4">
+                    <div className="space-y-3 md:space-y-4">
                       {sections.map((s) => {
                         // Count items in this section
                         let itemCount = 0;
@@ -760,39 +1006,39 @@ export default function AdminDashboard() {
 
                         return (
                           <SortableItem key={s.id} id={s.id} disabled={s.is_locked}>
-                            <div className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors group">
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <GripVertical className="w-8 h-8 text-muted-foreground cursor-grab active:cursor-grabbing opacity-50 group-hover:opacity-100 flex-shrink-0" />
-                                  <div className="flex-1">
-                                    <h3 className="font-bold text-sm">{s.name}</h3>
-                                    <p className="text-xs text-muted-foreground">{itemCount} items • {s.section_type}</p>
+                            <div className="bg-card border border-border rounded-lg p-3 md:p-4 hover:border-primary/50 transition-colors group">
+                              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:mb-0">
+                                <div className="flex items-start md:items-center gap-2 md:gap-3 flex-1 min-w-0">
+                                  <GripVertical className="w-6 md:w-8 h-6 md:h-8 text-muted-foreground cursor-grab active:cursor-grabbing opacity-50 group-hover:opacity-100 flex-shrink-0 mt-1 md:mt-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-sm md:text-base break-words">{s.name}</h3>
+                                    <p className="text-xs md:text-sm text-muted-foreground">{itemCount} items • {s.section_type}</p>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
+                                  <label className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm cursor-pointer">
                                     <Switch
                                       checked={s.is_visible}
                                       onCheckedChange={async (checked) => {
                                         await toggleVisibility(s.id, Boolean(checked));
                                       }}
                                     />
-                                    <span className="text-xs">{s.is_visible ? 'ON' : 'OFF'}</span>
+                                    <span className="text-xs whitespace-nowrap">{s.is_visible ? 'ON' : 'OFF'}</span>
                                   </label>
 
-                                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <label className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm cursor-pointer">
                                     <Switch
                                       checked={s.is_locked}
                                       onCheckedChange={async (checked) => {
                                         await toggleLockState(s.id, Boolean(checked));
                                       }}
                                     />
-                                    <span className="text-xs">{s.is_locked ? 'Fixed' : 'Moving'}</span>
+                                    <span className="text-xs whitespace-nowrap">{s.is_locked ? 'Fixed' : 'Moving'}</span>
                                   </label>
 
                                   <button
                                     onClick={() => handleDeleteSection(s.id)}
-                                    className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    className="p-1 md:p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors opacity-0 md:opacity-100 group-hover:opacity-100"
                                     title="Delete section"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -855,6 +1101,16 @@ export default function AdminDashboard() {
                 </p>
                 {selectedCardsSectionId && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <label className="flex items-center gap-2 text-sm self-center md:self-auto">
+                      <Switch
+                        checked={cardsFixedModeEnabled}
+                        onCheckedChange={async (checked) => {
+                          await toggleCardsFixedMode(selectedCardsSectionId, Boolean(checked));
+                        }}
+                      />
+                      <span className="text-xs">Fixed Mode</span>
+                      <span className="text-xs">{cardsFixedModeEnabled ? 'ON' : 'OFF'}</span>
+                    </label>
                     <button
                       onClick={() => openHeadingEdit(selectedCardsSectionId)}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
@@ -872,7 +1128,7 @@ export default function AdminDashboard() {
                       <span className="md:hidden">Delete</span>
                     </button>
                     <button
-                      onClick={() => setEditCard({ title: '', description: '', logo_url: null })}
+                      onClick={() => setEditCard({ title: '', description: '', logo_url: null, link: null })}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
                     >
                       <Plus className="w-4 h-4" />
@@ -883,21 +1139,41 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="grid gap-3">
-                {cards
-                  .filter(c => selectedCardsSectionId ? c.section_id === selectedCardsSectionId : true)
-                  .map((card) => (
-                  <div key={card.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
-                    {card.logo_url && <img src={card.logo_url} alt="" className="w-12 h-12 rounded-lg object-contain bg-muted p-1" />}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm">{card.title}</h3>
-                      <p className="text-xs text-muted-foreground truncate">{card.description}</p>
+              {cardsFixedModeEnabled ? (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCardDragEnd}>
+                  <SortableContext items={selectedCards.map((card) => card.id)} strategy={verticalListSortingStrategy}>
+                    <div className="grid gap-3">
+                      {selectedCards.map((card) => (
+                        <SortableOfferItem key={card.id} id={card.id} disabled={!cardsFixedModeEnabled}>
+                          {card.logo_url && <img src={card.logo_url} alt="" className="w-12 h-12 rounded-lg object-contain bg-muted p-1" />}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm">{card.title}</h3>
+                            <p className="text-xs text-muted-foreground truncate">{card.description}</p>
+                          </div>
+                          <button onClick={() => setEditCard(card)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => deleteCard(card.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                        </SortableOfferItem>
+                      ))}
                     </div>
-                    <button onClick={() => setEditCard(card)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => deleteCard(card.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                ))}
-              </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <div className="grid gap-3">
+                  {cards
+                    .filter(c => selectedCardsSectionId ? c.section_id === selectedCardsSectionId : true)
+                    .map((card) => (
+                    <div key={card.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
+                      {card.logo_url && <img src={card.logo_url} alt="" className="w-12 h-12 rounded-lg object-contain bg-muted p-1" />}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm">{card.title}</h3>
+                        <p className="text-xs text-muted-foreground truncate">{card.description}</p>
+                      </div>
+                      <button onClick={() => setEditCard(card)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => deleteCard(card.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {editCard && (
                 <Modal title={editCard.id ? 'Edit Card' : 'Add Card'} onClose={() => setEditCard(null)}>
                   <div className="space-y-4">
@@ -909,6 +1185,10 @@ export default function AdminDashboard() {
                     <div>
                       <label className="block text-sm font-medium mb-1.5">Description</label>
                       <textarea value={editCard.description || ''} onChange={(e) => setEditCard({ ...editCard, description: e.target.value })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" rows={3} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">Link (optional)</label>
+                      <input value={editCard.link || ''} onChange={(e) => setEditCard({ ...editCard, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
                     </div>
                     <button onClick={saveCard} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
                   </div>
@@ -1168,13 +1448,13 @@ export default function AdminDashboard() {
                       </label>
                       <label className="flex items-center gap-2 text-sm">
                         <Switch
-                          checked={fixedModeEnabled}
+                          checked={offersFixedModeEnabled}
                           onCheckedChange={async (checked) => {
                             await toggleOffersFixedMode(selectedOffersSection.id, Boolean(checked));
                           }}
                         />
                         <span className="text-xs">Fixed Mode</span>
-                        <span className="text-xs">{fixedModeEnabled ? 'ON' : 'OFF'}</span>
+                        <span className="text-xs">{offersFixedModeEnabled ? 'ON' : 'OFF'}</span>
                       </label>
                     </div>
                   )}
@@ -1209,12 +1489,12 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {fixedModeEnabled ? (
+              {offersFixedModeEnabled ? (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleOfferDragEnd}>
                   <SortableContext items={selectedOffers.map((offer) => offer.id)} strategy={verticalListSortingStrategy}>
                     <div className="grid gap-3">
                       {selectedOffers.map((offer) => (
-                        <SortableOfferItem key={offer.id} id={offer.id} disabled={!fixedModeEnabled}>
+                        <SortableOfferItem key={offer.id} id={offer.id} disabled={!offersFixedModeEnabled}>
                           {offer.image_url && <img src={offer.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-sm">{offer.heading}</h3>
@@ -1307,6 +1587,16 @@ export default function AdminDashboard() {
                 </p>
                 {selectedAds2SectionId && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <label className="flex items-center gap-2 text-sm self-center md:self-auto">
+                      <Switch
+                        checked={ads2FixedModeEnabled}
+                        onCheckedChange={async (checked) => {
+                          await toggleAds2FixedMode(selectedAds2SectionId, Boolean(checked));
+                        }}
+                      />
+                      <span className="text-xs">Fixed Mode</span>
+                      <span className="text-xs">{ads2FixedModeEnabled ? 'ON' : 'OFF'}</span>
+                    </label>
                     <button
                       onClick={() => openHeadingEdit(selectedAds2SectionId)}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
@@ -1332,19 +1622,38 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {ads2
-                  .filter(a => selectedAds2SectionId ? a.section_id === selectedAds2SectionId : true)
-                  .map((ad) => (
-                  <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[2/1] bg-muted group">
-                    {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setEditAd2(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => deleteAd2(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
+              {ads2FixedModeEnabled ? (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleAds2DragEnd}>
+                  <SortableContext items={selectedAds2.map((ad) => ad.id)} strategy={verticalListSortingStrategy}>
+                    <div className="grid gap-3">
+                      {selectedAds2.map((ad) => (
+                        <SortableOfferItem key={ad.id} id={ad.id} disabled={!ads2FixedModeEnabled}>
+                          {ad.image_url && <img src={ad.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm">Ad {selectedAds2.indexOf(ad) + 1}</h3>
+                          </div>
+                          <button onClick={() => setEditAd2(ad)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => deleteAd2(ad.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                        </SortableOfferItem>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {ads2
+                    .filter(a => selectedAds2SectionId ? a.section_id === selectedAds2SectionId : true)
+                    .map((ad) => (
+                    <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[2/1] bg-muted group">
+                      {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setEditAd2(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => deleteAd2(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {editAd2 && (
                 <Modal title={editAd2.id ? 'Edit 2-Col Ad' : 'Add 2-Col Ad'} onClose={() => setEditAd2(null)}>
                   <div className="space-y-4">
@@ -1354,6 +1663,128 @@ export default function AdminDashboard() {
                       <input value={editAd2.link || ''} onChange={(e) => setEditAd2({ ...editAd2, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
                     </div>
                     <button onClick={saveAd2} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
+                  </div>
+                </Modal>
+              )}
+            </div>
+          )}
+
+          {/* 1-COL ADS */}
+          {tab === 'ads_1col' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">1-Column Ad</h2>
+                <button
+                  onClick={() => {
+                    setAddSectionType('ads_1col');
+                    setShowAddSectionModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4" /> Add New Section
+                </button>
+              </div>
+
+              {sections.filter(s => s.section_type === 'ads_1col').length > 0 && (
+                <div className="mb-6 hidden md:block">
+                  <div className="flex gap-2 flex-wrap mb-4 overflow-x-auto pb-2">
+                    {sections.filter(s => s.section_type === 'ads_1col').map(section => (
+                      <button
+                        key={section.id}
+                        onClick={() => setSelectedAds1SectionId(section.id)}
+                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                          selectedAds1SectionId === section.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card border border-border text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {getSectionDisplayName(section)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {selectedAds1SectionId ? `Section: ${getSectionDisplayName(sections.find(s => s.id === selectedAds1SectionId))}` : 'No section selected'}
+                </p>
+                {selectedAds1SectionId && (
+                  <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <label className="flex items-center gap-2 text-sm self-center md:self-auto">
+                      <Switch
+                        checked={ads1FixedModeEnabled}
+                        onCheckedChange={async (checked) => {
+                          await toggleAds2FixedMode(selectedAds1SectionId, Boolean(checked));
+                        }}
+                      />
+                      <span className="text-xs">Fixed Mode</span>
+                      <span className="text-xs">{ads1FixedModeEnabled ? 'ON' : 'OFF'}</span>
+                    </label>
+                    <button
+                      onClick={() => openHeadingEdit(selectedAds1SectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span className="hidden md:inline">Edit Heading</span>
+                      <span className="md:hidden">Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(selectedAds1SectionId)}
+                      className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-destructive text-destructive-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden md:inline">Delete Section</span>
+                      <span className="md:hidden">Delete</span>
+                    </button>
+                    <button onClick={() => setEditAd1({ image_url: null, link: null })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden md:inline">Add Item</span>
+                      <span className="md:hidden">Add</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {ads1FixedModeEnabled ? (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleAds1DragEnd}>
+                  <SortableContext items={selectedAds1.map((ad) => ad.id)} strategy={verticalListSortingStrategy}>
+                    <div className="grid gap-3">
+                      {selectedAds1.map((ad) => (
+                        <SortableOfferItem key={ad.id} id={ad.id} disabled={!ads1FixedModeEnabled}>
+                          {ad.image_url && <img src={ad.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm">Ad {selectedAds1.indexOf(ad) + 1}</h3>
+                          </div>
+                          <button onClick={() => setEditAd1(ad)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => deleteAd2(ad.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                        </SortableOfferItem>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <div className="grid gap-3">
+                  {selectedAds1.map((ad) => (
+                    <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[2/1] bg-muted group">
+                      {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setEditAd1(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => deleteAd2(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {editAd1 && (
+                <Modal title={editAd1.id ? 'Edit 1-Col Ad' : 'Add 1-Col Ad'} onClose={() => setEditAd1(null)}>
+                  <div className="space-y-4">
+                    <ImageCropper label="Ad Image" value={editAd1.image_url || null} onChange={(url) => setEditAd1({ ...editAd1, image_url: url })} folder="ads" previewAspectRatio={2/1} previewLabel="Desktop Preview (2:1)" />
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">Link (optional)</label>
+                      <input value={editAd1.link || ''} onChange={(e) => setEditAd1({ ...editAd1, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
+                    </div>
+                    <button onClick={saveAd1} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
                   </div>
                 </Modal>
               )}
@@ -1398,12 +1829,22 @@ export default function AdminDashboard() {
 
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 mb-4">
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  {selectedAds3SectionId ? `Section: ${getSectionDisplayName(sections.find(s => s.id === selectedAds3SectionId))}` : 'No section selected'}
+                  {selectedAds3Section ? `Section: ${getSectionDisplayName(selectedAds3Section)}` : 'No section selected'}
                 </p>
-                {selectedAds3SectionId && (
+                {selectedAds3Section && (
                   <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <label className="flex items-center gap-2 text-sm self-center md:self-auto">
+                      <Switch
+                        checked={ads3FixedModeEnabled}
+                        onCheckedChange={async (checked) => {
+                          await toggleAds3FixedMode(selectedAds3Section.id, Boolean(checked));
+                        }}
+                      />
+                      <span className="text-xs">Fixed Mode</span>
+                      <span className="text-xs">{ads3FixedModeEnabled ? 'ON' : 'OFF'}</span>
+                    </label>
                     <button
-                      onClick={() => openHeadingEdit(selectedAds3SectionId)}
+                      onClick={() => openHeadingEdit(selectedAds3Section.id)}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-blue-600 text-white text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-blue-700"
                     >
                       <Pencil className="w-4 h-4" />
@@ -1411,7 +1852,7 @@ export default function AdminDashboard() {
                       <span className="md:hidden">Edit</span>
                     </button>
                     <button
-                      onClick={() => handleDeleteSection(selectedAds3SectionId)}
+                      onClick={() => handleDeleteSection(selectedAds3Section.id)}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-destructive text-destructive-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1427,19 +1868,38 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                {ads3
-                  .filter(a => selectedAds3SectionId ? a.section_id === selectedAds3SectionId : true)
-                  .map((ad) => (
-                  <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[16/9] bg-muted group">
-                    {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setEditAd3(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => deleteAd3(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
+              {ads3FixedModeEnabled ? (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleAds3DragEnd}>
+                  <SortableContext items={selectedAds3.map((ad) => ad.id)} strategy={verticalListSortingStrategy}>
+                    <div className="grid gap-3">
+                      {selectedAds3.map((ad) => (
+                        <SortableOfferItem key={ad.id} id={ad.id} disabled={!ads3FixedModeEnabled}>
+                          {ad.image_url && <img src={ad.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm">Ad {selectedAds3.indexOf(ad) + 1}</h3>
+                          </div>
+                          <button onClick={() => setEditAd3(ad)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                          <button onClick={() => deleteAd3(ad.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                        </SortableOfferItem>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  {ads3
+                    .filter(a => selectedAds3SectionId ? a.section_id === selectedAds3SectionId : true)
+                    .map((ad) => (
+                    <div key={ad.id} className="relative rounded-xl overflow-hidden border border-border aspect-[16/9] bg-muted group">
+                      {ad.image_url && <img src={ad.image_url} alt="" className="w-full h-full object-cover" />}
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setEditAd3(ad)} className="w-8 h-8 rounded-full bg-card shadow flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => deleteAd3(ad.id)} className="w-8 h-8 rounded-full bg-destructive text-destructive-foreground shadow flex items-center justify-center"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {editAd3 && (
                 <Modal title={editAd3.id ? 'Edit 3-Col Ad' : 'Add 3-Col Ad'} onClose={() => setEditAd3(null)}>
                   <div className="space-y-4">

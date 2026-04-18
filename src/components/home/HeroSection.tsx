@@ -133,9 +133,11 @@ export default function HeroSection() {
 
         {/* HEADING */}
         <h1
-  className="mb-4 text-[#1c1c1c] text-[28px] sm:text-[34px] md:text-[44px] font-extrabold leading-[1.3]"
+  className="mb-4 text-[#1c1c1c] text-[30px] sm:text-[34px] md:text-[44px] leading-[1.3]"
   style={{
-    fontFamily: 'Trustpilot Display, Arial, sans-serif',
+    fontFamily: 'Trustpilot Display, Inter, sans-serif',
+    fontWeight: 800,
+  
   }}
 >
   {mainText}
@@ -144,16 +146,16 @@ export default function HeroSection() {
 
         {/* ANIMATED TEXT */}
         <div
-          className="h-16 flex items-center justify-center"
+          className="h-12 flex items-center justify-center"
           style={{
             fontFamily: 'Trustpilot Display, Arial, sans-serif',
-            fontSize: '28px',
+            fontSize: '24px',
             fontWeight: 60,
           }}
         >
-          <span className="text-[#61646b]">
+          <span className="text-[#121511]">
             {displayed}
-            <span className="inline-block w-[6px] h-[1em] bg-[#61646b] ml-1 animate-pulse" />
+            <span className="inline-block w-[4px] h-[1em] bg-[#121511] ml-1 animate-pulse" />
           </span>
         </div>
 
@@ -185,7 +187,7 @@ export default function HeroSection() {
                 onChange={(event) => setQuery(event.target.value)}
                 onFocus={() => setIsSearchActive(true)}
                 onBlur={() => setTimeout(() => setIsSearchActive(false), 100)}
-                className="w-full h-[64px] rounded-[32px] bg-transparent pl-6 pr-20 text-[16px] outline-none"
+                className="w-full h-[64px] rounded-[32px] bg-transparent pl-6 pr-20 text-[14px] outline-none"
                 style={{
                   fontFamily: 'Trustpilot Sans, Poppins, sans-serif',
                   fontWeight: 450,

@@ -9,6 +9,7 @@ interface Ad {
   image_url: string | null;
   link: string | null;
   sort_order: number;
+  is_fixed: boolean;
 }
 
 interface Ads2ColSectionProps {
@@ -21,7 +22,9 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
   const [showHeading, setShowHeading] = useState(true);
   const isMobile = useIsMobile();
   const visibleCount = isMobile ? 1 : 2;
-  const needsCarousel = ads.length > visibleCount;
+  const fixedMode = ads.some((ad) => ad.is_fixed);
+  const adsToDisplay = fixedMode ? ads.slice(0, 2) : ads;
+  const needsCarousel = !fixedMode && ads.length > visibleCount;
 
   const {
     index,
@@ -35,7 +38,12 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
   useEffect(() => {
     const loadAds = () => {
       supabase.from('ads_2col').select('*').eq('section_id', sectionId).order('sort_order').then(({ data }) => {
-        if (data) setAds(data);
+        if (data) {
+          setAds((data as any[]).map((ad) => ({
+            ...ad,
+            is_fixed: ad.is_fixed ?? false,
+          })));
+        }
       });
     };
 
@@ -72,8 +80,8 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
   }, [sectionId]);
 
   const displayAds = useMemo(
-    () => [...ads, ...ads.slice(0, duplicatedCount)],
-    [ads, duplicatedCount],
+    () => !fixedMode && needsCarousel ? [...adsToDisplay, ...adsToDisplay.slice(0, duplicatedCount)] : adsToDisplay,
+    [adsToDisplay, duplicatedCount, fixedMode, needsCarousel],
   );
 
   if (ads.length === 0) return null;
@@ -122,7 +130,7 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
           </div>
         ) : (
           <div className="flex">
-            {ads.map((ad) => (
+            {adsToDisplay.map((ad) => (
               <div key={ad.id} className="flex-1 px-2.5">
                 <a
                   href={ad.link || '#'}

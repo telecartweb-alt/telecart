@@ -6,6 +6,7 @@ import HeroSection from '@/components/home/HeroSection';
 import FeaturedCards from '@/components/home/FeaturedCards';
 import CategoriesSection from '@/components/home/CategoriesSection';
 import OffersSection from '@/components/home/OffersSection';
+import Ads1ColSection from '@/components/home/Ads1ColSection';
 import Ads2ColSection from '@/components/home/Ads2ColSection';
 import Ads3ColSection from '@/components/home/Ads3ColSection';
 
@@ -22,6 +23,7 @@ const SECTION_MAP: Record<string, React.FC<{ sectionId: string }>> = {
   cards: FeaturedCards,
   categories: CategoriesSection,
   offers: OffersSection,
+  ads_1col: Ads1ColSection,
   ads_2col: Ads2ColSection,
   ads_3col: Ads3ColSection,
 };

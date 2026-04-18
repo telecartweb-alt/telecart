@@ -72,6 +72,7 @@ export const useSectionInstances = () => {
         cards: 'Featured Cards',
         categories: 'Categories',
         offers: 'Offers & Discounts',
+        ads_1col: '1-Column Ad',
         ads_2col: '2-Column Ads',
         ads_3col: '3-Column Ads',
       };

@@ -72,31 +72,40 @@ export type Database = {
         Row: {
           bg_color: string
           created_at: string
+          detail_description: string | null
+          detail_heading: string | null
           icon_url: string | null
           id: string
           name: string
           section_id: string
           sort_order: number
+          subcategories_tab_label: string | null
           updated_at: string
         }
         Insert: {
           bg_color?: string
           created_at?: string
+          detail_description?: string | null
+          detail_heading?: string | null
           icon_url?: string | null
           id?: string
           name: string
           section_id: string
           sort_order?: number
+          subcategories_tab_label?: string | null
           updated_at?: string
         }
         Update: {
           bg_color?: string
           created_at?: string
+          detail_description?: string | null
+          detail_heading?: string | null
           icon_url?: string | null
           id?: string
           name?: string
           section_id?: string
           sort_order?: number
+          subcategories_tab_label?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -238,6 +247,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      category_buttons: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          is_visible: boolean
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          label?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_buttons_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hero_settings: {
         Row: {

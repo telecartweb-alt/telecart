@@ -98,8 +98,9 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
               return (
                 <div
                   key={category.id}
-                  className="border-b border-border/30"
+                  className="relative"
                 >
+                  <div className="absolute bottom-0 left-0 w-screen border-b border-border/70"></div>
                   {/* Category Header */}
                   <button
                     type="button"
@@ -112,22 +113,22 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
                     className="flex w-full items-center justify-between px-4 py-3 transition-colors"
                     style={{ backgroundColor: isExpanded ? category.bg_color : 'transparent' }}
                   >
-                    <div className="flex items-center gap-3 text-left">
+                    <div className="flex items-center gap-4 text-left">
                       {category.icon_url && (
                         <img
                           src={category.icon_url}
                           alt={category.name}
-                          className="h-8 w-8 object-contain"
+                          className="h-6 w-6 object-contain"
                         />
                       )}
-                      <h3 className="font-medium text-foreground">
+                      <h3 className="text-[14px] font-base text-foreground">
                         {category.name}
                       </h3>
                     </div>
                     {isExpanded ? (
-                      <Minus className="h-5 w-5 flex-shrink-0 text-foreground" />
+                      <Minus className="h-3 w-3 flex-shrink-0 text-foreground" />
                     ) : (
-                      <Plus className="h-5 w-5 flex-shrink-0 text-foreground" />
+                      <Plus className="h-3 w-3 flex-shrink-0 text-foreground" />
                     )}
                   </button>
 
@@ -203,12 +204,7 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
                     {category.subcategories.length > 5 && !showAll && (
                       <button
                         type="button"
-                        onClick={() =>
-                          setExpanded((prev) => ({
-                            ...prev,
-                            [category.id]: true,
-                          }))
-                        }
+                        onClick={() => navigate(`/category/${category.id}/subcategories`)}
                         className="mt-3 text-sm md:text-base font-semibold text-primary hover:underline"
                       >
                         See all {'->'}
@@ -233,6 +229,8 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
                 </div>
               );
             })}
+            
+
           </div>
         )}
       </div>

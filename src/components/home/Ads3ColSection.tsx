@@ -9,6 +9,7 @@ interface Ad {
   image_url: string | null;
   link: string | null;
   sort_order: number;
+  is_fixed: boolean;
 }
 
 interface Ads3ColSectionProps {
@@ -20,10 +21,12 @@ export default function Ads3ColSection({ sectionId }: Ads3ColSectionProps) {
   const [heading, setHeading] = useState('3 Column Ads');
   const [showHeading, setShowHeading] = useState(true);
   const isMobile = useIsMobile();
+  const fixedMode = ads.some((ad) => ad.is_fixed);
+  const adsToDisplay = fixedMode ? ads.slice(0, 3) : ads;
   
   // Dynamic layout based on number of ads
   let visibleCount: number;
-  if (ads.length < 3) {
+  if (adsToDisplay.length < 3) {
     // Use 2-column layout for 1-2 ads
     visibleCount = isMobile ? 1 : 2;
   } else {
@@ -31,7 +34,7 @@ export default function Ads3ColSection({ sectionId }: Ads3ColSectionProps) {
     visibleCount = isMobile ? 1 : 3;
   }
   
-  const needsCarousel = ads.length > visibleCount;
+  const needsCarousel = !fixedMode && adsToDisplay.length > visibleCount;
   const {
     index,
     animate,
@@ -81,8 +84,8 @@ export default function Ads3ColSection({ sectionId }: Ads3ColSectionProps) {
   }, [sectionId]);
 
   const displayAds = useMemo(
-    () => [...ads, ...ads.slice(0, duplicatedCount)],
-    [ads, duplicatedCount],
+    () => !fixedMode && needsCarousel ? [...adsToDisplay, ...adsToDisplay.slice(0, duplicatedCount)] : adsToDisplay,
+    [adsToDisplay, duplicatedCount, fixedMode, needsCarousel],
   );
 
   if (ads.length === 0) return null;
@@ -130,12 +133,12 @@ export default function Ads3ColSection({ sectionId }: Ads3ColSectionProps) {
           </div>
         ) : (
           <div className="flex">
-            {ads.map((ad) => (
+            {adsToDisplay.map((ad) => (
               <div key={ad.id} className="flex-1 px-2.5">
                 <a
                   href={ad.link || '#'}
                   className={`block overflow-hidden rounded-xl bg-muted ${
-                    ads.length < 3
+                    adsToDisplay.length < 3
                       ? 'h-[180px] md:h-[300px]'
                       : 'aspect-[16/9]'
                   }`}
