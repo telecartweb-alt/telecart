@@ -81,7 +81,7 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
   if (categories.length === 0) return null;
 
   return (
-    <section id="categories" className="py-12 md:py-16 bg-[#f9f8f5]">
+    <section id="categories" className="py-12 md:py-16 bg-white md:bg-[#f9f8f5]">
   
 
       <div className="mx-auto max-w-[1580px] px-6 md:px-8 lg:px-12">

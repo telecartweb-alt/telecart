@@ -19,6 +19,13 @@ interface Subcategory {
   sort_order: number;
 }
 
+const normalizeExternalUrl = (url: string) => {
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return null;
+
+  return /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
+};
+
 export default function AllSubcategoriesPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const [category, setCategory] = useState<Category | null>(null);
@@ -81,46 +88,63 @@ export default function AllSubcategoriesPage() {
             <Link to="/" className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" /> Back to Home
             </Link>
+
             <div className="flex items-center gap-4">
               {category.icon_url && (
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl" style={{ backgroundColor: category.bg_color }}>
-                  <img src={category.icon_url} alt={category.name} className="h-9 w-9 object-contain" />
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: category.bg_color }}
+                >
+                  <img src={category.icon_url} alt={category.name} className="h-7 w-7 object-contain" />
                 </div>
               )}
               <div>
-                <h1 className="text-2xl font-bold">{category.name}</h1>
-                <p className="text-sm text-muted-foreground">{subcategories.length} subcategories</p>
+                <h1 className="text-xl md:text-2xl font-bold">{category.name}</h1>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {subcategories.length} Products
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-8">
+        {/* 🔥 Compact Subcategories Grid */}
+        <div className="container mx-auto px-4 py-6">
           {subcategories.length === 0 ? (
             <p className="text-center text-muted-foreground">No subcategories available.</p>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+
               {subcategories.map((sub) => (
-                <Link
+                <div
                   key={sub.id}
-                  to={`/category/${categoryId}/subcategory/${sub.id}`}
-                  className="group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-md"
+                  className="flex w-full max-w-[200px] sm:max-w-none items-center justify-between rounded-lg border border-border bg-card px-3 py-2 transition-all hover:border-primary/50 hover:shadow-sm"
                 >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold group-hover:text-primary transition-colors flex-1">{sub.name}</h3>
-                    {sub.link && (
-                      <a
-                        href={sub.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.preventDefault()}
-                        className="ml-3 text-primary hover:text-primary/80 transition-colors flex-shrink-0"
-                      >
-                        <ExternalLink className="h-5 w-5" />
-                      </a>
-                    )}
-                  </div>
-                </Link>
+                  <Link
+                    to={`/category/${categoryId}/subcategory/${sub.id}`}
+                    className="group min-w-0 flex-1"
+                  >
+                    <span className="text-sm md:text-[15px] font-medium text-foreground group-hover:text-primary transition-colors">
+                      {sub.name}
+                    </span>
+                  </Link>
+
+                  {sub.link && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const externalUrl = normalizeExternalUrl(sub.link!);
+                        if (externalUrl) {
+                          window.open(externalUrl, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      className="ml-2 flex-shrink-0 text-primary hover:text-primary/80"
+                      aria-label={`Open ${sub.name} link`}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
