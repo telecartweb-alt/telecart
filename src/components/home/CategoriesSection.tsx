@@ -86,9 +86,12 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
 
       <div className="mx-auto max-w-[1580px] px-6 md:px-8 lg:px-12">
         {showHeading && (
-          <h2 className="mb-8 text-xl font-semibold md:text-4xl">
-            {heading}
-          </h2>
+          <h2 className="mb-8 text-[24px] leading-[1.2] font-[575] text-[#2d2f29]">
+  {heading}
+</h2>
+
+
+
         )}
 
         {/* Mobile: Collapsible View */}
