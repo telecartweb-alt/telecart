@@ -7,21 +7,29 @@ interface Ad {
   link: string | null;
   sort_order: number;
   is_fixed: boolean;
+  show_border: boolean;
 }
 
 interface Ads1ColSectionProps {
   sectionId: string;
+  sectionTable?: string;
+  adsTable?: string;
 }
 
-export default function Ads1ColSection({ sectionId }: Ads1ColSectionProps) {
+export default function Ads1ColSection({
+  sectionId,
+  sectionTable = 'page_sections',
+  adsTable = 'ads_2col',
+}: Ads1ColSectionProps) {
+  const db = supabase as any;
   const [ads, setAds] = useState<Ad[]>([]);
   const [heading, setHeading] = useState('Featured Ad');
   const [showHeading, setShowHeading] = useState(true);
 
   useEffect(() => {
     const loadAds = () => {
-      supabase
-        .from('ads_2col')
+      db
+        .from(adsTable)
         .select('*')
         .eq('section_id', sectionId)
         .order('sort_order')
@@ -31,6 +39,7 @@ export default function Ads1ColSection({ sectionId }: Ads1ColSectionProps) {
               (data as any[]).map((ad) => ({
                 ...ad,
                 is_fixed: ad.is_fixed ?? false,
+                show_border: ad.show_border ?? false,
               }))
             );
           }
@@ -38,8 +47,8 @@ export default function Ads1ColSection({ sectionId }: Ads1ColSectionProps) {
     };
 
     const loadSection = async () => {
-      const { data } = await supabase
-        .from('page_sections')
+      const { data } = await db
+        .from(sectionTable)
         .select('heading, show_heading')
         .eq('id', sectionId)
         .single();
@@ -57,7 +66,7 @@ export default function Ads1ColSection({ sectionId }: Ads1ColSectionProps) {
       .channel(`ads_1col_${sectionId}_live`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'ads_2col' },
+        { event: '*', schema: 'public', table: adsTable },
         loadAds
       )
       .subscribe();
@@ -66,7 +75,7 @@ export default function Ads1ColSection({ sectionId }: Ads1ColSectionProps) {
       .channel(`page_sections_1col_${sectionId}_live`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'page_sections' },
+        { event: '*', schema: 'public', table: sectionTable },
         loadSection
       )
       .subscribe();
@@ -75,7 +84,7 @@ export default function Ads1ColSection({ sectionId }: Ads1ColSectionProps) {
       adsChannel.unsubscribe();
       sectionChannel.unsubscribe();
     };
-  }, [sectionId]);
+  }, [adsTable, db, sectionId, sectionTable]);
 
   const ad = ads[0];
   if (!ad) return null;
@@ -90,7 +99,7 @@ export default function Ads1ColSection({ sectionId }: Ads1ColSectionProps) {
         )}
 
         {/* ✅ Reduced border radius */}
-        <div className="rounded-[12px] overflow-hidden bg-muted shadow-sm">
+        <div className={`rounded-[12px] overflow-hidden bg-muted shadow-sm ${ad.show_border ? 'border border-border' : ''}`}>
           <a
             href={ad.link || '#'}
             className="block overflow-hidden rounded-[12px] transition-transform duration-300 hover:scale-[1.01]"

@@ -10,13 +10,21 @@ interface Ad {
   link: string | null;
   sort_order: number;
   is_fixed: boolean;
+  show_border: boolean;
 }
 
 interface Ads2ColSectionProps {
   sectionId: string;
+  sectionTable?: string;
+  adsTable?: string;
 }
 
-export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
+export default function Ads2ColSection({
+  sectionId,
+  sectionTable = 'page_sections',
+  adsTable = 'ads_2col',
+}: Ads2ColSectionProps) {
+  const db = supabase as any;
   const [ads, setAds] = useState<Ad[]>([]);
   const [heading, setHeading] = useState('2 Column Ads');
   const [showHeading, setShowHeading] = useState(true);
@@ -37,19 +45,20 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
 
   useEffect(() => {
     const loadAds = () => {
-      supabase.from('ads_2col').select('*').eq('section_id', sectionId).order('sort_order').then(({ data }) => {
+      db.from(adsTable).select('*').eq('section_id', sectionId).order('sort_order').then(({ data }: { data: Ad[] | null }) => {
         if (data) {
           setAds((data as any[]).map((ad) => ({
             ...ad,
             is_fixed: ad.is_fixed ?? false,
+            show_border: ad.show_border ?? false,
           })));
         }
       });
     };
 
     const loadSection = async () => {
-      const { data } = await supabase
-        .from('page_sections')
+      const { data } = await db
+        .from(sectionTable)
         .select('heading, show_heading')
         .eq('id', sectionId)
         .single();
@@ -65,19 +74,19 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
 
     const adsChannel = supabase
       .channel(`ads_2col_${sectionId}_live`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ads_2col' }, loadAds)
+      .on('postgres_changes', { event: '*', schema: 'public', table: adsTable }, loadAds)
       .subscribe();
 
     const sectionsChannel = supabase
       .channel(`page_sections_2col_${sectionId}_live`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_sections' }, loadSection)
+      .on('postgres_changes', { event: '*', schema: 'public', table: sectionTable }, loadSection)
       .subscribe();
 
     return () => {
       adsChannel.unsubscribe();
       sectionsChannel.unsubscribe();
     };
-  }, [sectionId]);
+  }, [adsTable, db, sectionId, sectionTable]);
 
   const displayAds = useMemo(
     () => !fixedMode && needsCarousel ? [...adsToDisplay, ...adsToDisplay.slice(0, duplicatedCount)] : adsToDisplay,
@@ -113,7 +122,7 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
                   >
                     <a
                       href={ad.link || '#'}
-                      className="block h-[160px] md:h-[300px] overflow-hidden rounded-xl bg-muted"
+                      className={`block h-[160px] md:h-[300px] overflow-hidden rounded-xl bg-muted ${ad.show_border ? 'border border-border' : ''}`}
                     >
                       {ad.image_url && (
                         <img
@@ -134,7 +143,7 @@ export default function Ads2ColSection({ sectionId }: Ads2ColSectionProps) {
               <div key={ad.id} className="flex-1 px-2.5">
                 <a
                   href={ad.link || '#'}
-                  className="block h-[180px] md:h-[300px] overflow-hidden rounded-xl bg-muted"
+                  className={`block h-[180px] md:h-[300px] overflow-hidden rounded-xl bg-muted ${ad.show_border ? 'border border-border' : ''}`}
                 >
                   {ad.image_url && (
                     <img

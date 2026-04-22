@@ -237,6 +237,25 @@ export const useSectionInstances = () => {
     }
   };
 
+  const updateDescription = async (sectionId: string, description: string | null): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('page_sections')
+        .update({ description })
+        .eq('id', sectionId);
+
+      if (error) throw error;
+      setError(null);
+      await fetchSections();
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update section description';
+      setError(message);
+      console.error('Error updating section description:', err);
+      return false;
+    }
+  };
+
   // Toggle show heading
   const toggleShowHeading = async (sectionId: string, showHeading: boolean): Promise<boolean> => {
     try {
@@ -278,6 +297,7 @@ export const useSectionInstances = () => {
     updateSectionName,
     updateSortOrder,
     updateHeading,
+    updateDescription,
     toggleShowHeading,
     refetch: fetchSections,
   };

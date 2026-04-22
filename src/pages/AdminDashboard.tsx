@@ -20,14 +20,14 @@ import {
   LayoutDashboard, Type, Layers, CreditCard, Tag, Star, Image, Lock, Unlock
 } from 'lucide-react';
 
-interface PageSection { id: string; section_type: string; name: string; sort_order: number; is_visible: boolean; is_locked: boolean; heading: string; show_heading: boolean; }
-interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
+interface PageSection { id: string; section_type: string; name: string; sort_order: number; is_visible: boolean; is_locked: boolean; heading: string; description: string | null; show_heading: boolean; }
+interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; show_border: boolean; }
 interface Category { id: string; name: string; icon_url: string | null; bg_color: string; sort_order: number; section_id: string; }
-interface Subcategory { id: string; category_id: string; name: string; link: string | null; video_url?: string | null; sort_order: number; }
+interface Subcategory { id: string; category_id: string; name: string; link: string | null; video_url?: string | null; schedule_link?: string | null; show_schedule_in_separate_tab?: boolean; schedule_link_2?: string | null; show_schedule_2_in_separate_tab?: boolean; sort_order: number; }
 interface CategoryDownload { id: string; category_id: string; file_name: string; file_url: string; file_type: string; }
-interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
-interface Ad2 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
-interface Ad3 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; }
+interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; show_border: boolean; }
+interface Ad2 { id: string; image_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; show_border: boolean; }
+interface Ad3 { id: string; image_url: string | null; heading: string | null; description: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; show_border: boolean; }
 
 type Tab = 'dashboard' | 'hero' | 'sections' | 'cards' | 'categories' | 'offers' | 'ads_1col' | 'ads_2col' | 'ads_3col';
 
@@ -201,13 +201,13 @@ export default function AdminDashboard() {
     ]);
     if (s.data) setSections(s.data);
     if (h.data) { setHeroText(h.data.main_text); setHeroWords(h.data.animated_words.join(', ')); }
-    if (c.data) setCards((c.data as any[]).map(card => ({ ...card, link: card.link ?? null, is_fixed: card.is_fixed ?? false })));
+    if (c.data) setCards((c.data as any[]).map(card => ({ ...card, link: card.link ?? null, is_fixed: card.is_fixed ?? false, show_border: card.show_border ?? false })));
     if (cat.data) setCategories(cat.data);
     if (sub.data) setSubcategories(sub.data);
     if (downloads.data) setCategoryDownloads(downloads.data);
-    if (o.data) setOffers((o.data as any[]).map(offer => ({ ...offer, is_fixed: offer.is_fixed ?? false })));
-    if (a2.data) setAds2((a2.data as any[]).map(ad => ({ ...ad, is_fixed: ad.is_fixed ?? false })));
-    if (a3.data) setAds3((a3.data as any[]).map(ad => ({ ...ad, is_fixed: ad.is_fixed ?? false })));
+    if (o.data) setOffers((o.data as any[]).map(offer => ({ ...offer, is_fixed: offer.is_fixed ?? false, show_border: offer.show_border ?? false })));
+    if (a2.data) setAds2((a2.data as any[]).map(ad => ({ ...ad, is_fixed: ad.is_fixed ?? false, show_border: ad.show_border ?? false })));
+    if (a3.data) setAds3((a3.data as any[]).map(ad => ({ ...ad, is_fixed: ad.is_fixed ?? false, show_border: ad.show_border ?? false })));
   }
 
   function getSectionDisplayName(section: PageSection | undefined) {
@@ -384,14 +384,14 @@ export default function AdminDashboard() {
     }
     try {
       if (editCard.id) {
-        const updateData: any = { title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, link: editCard.link || null };
+        const updateData: any = { title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, link: editCard.link || null, show_border: editCard.show_border ?? false };
         if (cardsFixedModeEnabled !== undefined) {
           updateData.is_fixed = cardsFixedModeEnabled;
         }
         const { error } = await supabase.from('featured_cards').update(updateData).eq('id', editCard.id);
         if (error) throw error;
       } else {
-        const insertData: any = { title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, link: editCard.link || null, sort_order: cards.length, section_id: selectedCardsSectionId };
+        const insertData: any = { title: editCard.title.trim(), description: editCard.description.trim(), logo_url: editCard.logo_url, link: editCard.link || null, show_border: editCard.show_border ?? false, sort_order: cards.length, section_id: selectedCardsSectionId };
         if (cardsFixedModeEnabled !== undefined) {
           insertData.is_fixed = cardsFixedModeEnabled;
         }
@@ -596,6 +596,10 @@ export default function AdminDashboard() {
             name: sub.name,
             link: sub.link,
             video_url: sub.video_url,
+            schedule_link: sub.schedule_link,
+            show_schedule_in_separate_tab: sub.show_schedule_in_separate_tab ?? false,
+            schedule_link_2: sub.schedule_link_2 || null,
+            show_schedule_2_in_separate_tab: sub.show_schedule_2_in_separate_tab ?? false,
             sort_order: index
           }));
           const { error: subError } = await supabase.from('subcategories').insert(subsToInsert);
@@ -643,7 +647,7 @@ export default function AdminDashboard() {
       const selectedOffersCount = selectedOffers.length;
 
       if (editOffer.id) {
-        const updateData: any = { heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link };
+        const updateData: any = { heading: editOffer.heading.trim(), description: editOffer.description, image_url: editOffer.image_url, link: editOffer.link, show_border: editOffer.show_border ?? false };
         if (offersFixedModeEnabled !== undefined) {
           updateData.is_fixed = offersFixedModeEnabled;
         }
@@ -655,6 +659,7 @@ export default function AdminDashboard() {
           description: editOffer.description,
           image_url: editOffer.image_url,
           link: editOffer.link,
+          show_border: editOffer.show_border ?? false,
           sort_order: selectedOffersCount,
           section_id: selectedOffersSectionId,
         };
@@ -687,14 +692,14 @@ export default function AdminDashboard() {
     if (!editAd2) return;
     try {
       if (editAd2.id) {
-        const updateData: any = { image_url: editAd2.image_url, link: editAd2.link };
+        const updateData: any = { image_url: editAd2.image_url, link: editAd2.link, show_border: editAd2.show_border ?? false };
         if (ads2FixedModeEnabled !== undefined) {
           updateData.is_fixed = ads2FixedModeEnabled;
         }
         const { error } = await supabase.from('ads_2col').update(updateData).eq('id', editAd2.id);
         if (error) throw error;
       } else {
-        const insertData: any = { image_url: editAd2.image_url, link: editAd2.link, sort_order: ads2.length, section_id: selectedAds2SectionId };
+        const insertData: any = { image_url: editAd2.image_url, link: editAd2.link, show_border: editAd2.show_border ?? false, sort_order: ads2.length, section_id: selectedAds2SectionId };
         if (ads2FixedModeEnabled !== undefined) {
           insertData.is_fixed = ads2FixedModeEnabled;
         }
@@ -712,14 +717,14 @@ export default function AdminDashboard() {
     if (!editAd1) return;
     try {
       if (editAd1.id) {
-        const updateData: any = { image_url: editAd1.image_url, link: editAd1.link };
+        const updateData: any = { image_url: editAd1.image_url, link: editAd1.link, show_border: editAd1.show_border ?? false };
         if (ads1FixedModeEnabled !== undefined) {
           updateData.is_fixed = ads1FixedModeEnabled;
         }
         const { error } = await supabase.from('ads_2col').update(updateData).eq('id', editAd1.id);
         if (error) throw error;
       } else {
-        const insertData: any = { image_url: editAd1.image_url, link: editAd1.link, sort_order: selectedAds1.length, section_id: selectedAds1SectionId };
+        const insertData: any = { image_url: editAd1.image_url, link: editAd1.link, show_border: editAd1.show_border ?? false, sort_order: selectedAds1.length, section_id: selectedAds1SectionId };
         if (ads1FixedModeEnabled !== undefined) {
           insertData.is_fixed = ads1FixedModeEnabled;
         }
@@ -749,14 +754,28 @@ export default function AdminDashboard() {
     if (!editAd3) return;
     try {
       if (editAd3.id) {
-        const updateData: any = { image_url: editAd3.image_url, link: editAd3.link };
+        const updateData: any = {
+          image_url: editAd3.image_url,
+          heading: editAd3.heading || null,
+          description: editAd3.description || null,
+          link: editAd3.link,
+          show_border: editAd3.show_border ?? false,
+        };
         if (ads3FixedModeEnabled !== undefined) {
           updateData.is_fixed = ads3FixedModeEnabled;
         }
         const { error } = await supabase.from('ads_3col').update(updateData).eq('id', editAd3.id);
         if (error) throw error;
       } else {
-        const insertData: any = { image_url: editAd3.image_url, link: editAd3.link, sort_order: ads3.length, section_id: selectedAds3SectionId };
+        const insertData: any = {
+          image_url: editAd3.image_url,
+          heading: editAd3.heading || null,
+          description: editAd3.description || null,
+          link: editAd3.link,
+          show_border: editAd3.show_border ?? false,
+          sort_order: ads3.length,
+          section_id: selectedAds3SectionId,
+        };
         if (ads3FixedModeEnabled !== undefined) {
           insertData.is_fixed = ads3FixedModeEnabled;
         }
@@ -1128,7 +1147,7 @@ export default function AdminDashboard() {
                       <span className="md:hidden">Delete</span>
                     </button>
                     <button
-                      onClick={() => setEditCard({ title: '', description: '', logo_url: null, link: null })}
+                      onClick={() => setEditCard({ title: '', description: '', logo_url: null, link: null, show_border: false })}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
                     >
                       <Plus className="w-4 h-4" />
@@ -1190,6 +1209,10 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium mb-1.5">Link (optional)</label>
                       <input value={editCard.link || ''} onChange={(e) => setEditCard({ ...editCard, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
                     </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Switch checked={editCard.show_border ?? false} onCheckedChange={(checked) => setEditCard({ ...editCard, show_border: Boolean(checked) })} />
+                      <span>Enable Border</span>
+                    </label>
                     <button onClick={saveCard} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
                   </div>
                 </Modal>
@@ -1305,7 +1328,7 @@ export default function AdminDashboard() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium">Subcategories</label>
-                        <button onClick={() => setEditSubs([...editSubs, { id: crypto.randomUUID(), category_id: editCategory.id || '', name: '', link: null, video_url: null, sort_order: editSubs.length }])} className="text-sm text-primary font-semibold">+ Add</button>
+                        <button onClick={() => setEditSubs([...editSubs, { id: crypto.randomUUID(), category_id: editCategory.id || '', name: '', link: null, video_url: null, schedule_link: null, show_schedule_in_separate_tab: false, schedule_link_2: null, show_schedule_2_in_separate_tab: false, sort_order: editSubs.length }])} className="text-sm text-primary font-semibold">+ Add</button>
                       </div>
                       {editSubs.map((sub, i) => (
                         <div key={sub.id} className="space-y-2 mb-4 p-3 rounded-lg border border-border bg-muted/30">
@@ -1315,6 +1338,30 @@ export default function AdminDashboard() {
                           </div>
                           <input placeholder="Link (optional)" value={sub.link || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], link: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
                           <input placeholder="Video URL (optional)" value={sub.video_url || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], video_url: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                          <input placeholder="Schedule Link (optional)" value={sub.schedule_link || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], schedule_link: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                          <input placeholder="Schedule Link 2 (optional)" value={sub.schedule_link_2 || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], schedule_link_2: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Switch
+                              checked={sub.show_schedule_in_separate_tab ?? false}
+                              onCheckedChange={(checked) => {
+                                const ns = [...editSubs];
+                                ns[i] = { ...ns[i], show_schedule_in_separate_tab: Boolean(checked) };
+                                setEditSubs(ns);
+                              }}
+                            />
+                            <span>Show schedule in separate tab</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Switch
+                              checked={sub.show_schedule_2_in_separate_tab ?? false}
+                              onCheckedChange={(checked) => {
+                                const ns = [...editSubs];
+                                ns[i] = { ...ns[i], show_schedule_2_in_separate_tab: Boolean(checked) };
+                                setEditSubs(ns);
+                              }}
+                            />
+                            <span>Show schedule 2 in separate tab</span>
+                          </label>
                         </div>
                       ))}
                     </div>
@@ -1478,7 +1525,7 @@ export default function AdminDashboard() {
                       <span className="md:hidden">Delete</span>
                     </button>
                     <button
-                      onClick={() => setEditOffer({ heading: '', description: '', image_url: null, link: null })}
+                      onClick={() => setEditOffer({ heading: '', description: '', image_url: null, link: null, show_border: false })}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
                     >
                       <Plus className="w-4 h-4" />
@@ -1538,6 +1585,10 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium mb-1.5">Link (optional)</label>
                       <input value={editOffer.link || ''} onChange={(e) => setEditOffer({ ...editOffer, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
                     </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Switch checked={editOffer.show_border ?? false} onCheckedChange={(checked) => setEditOffer({ ...editOffer, show_border: Boolean(checked) })} />
+                      <span>Enable Border</span>
+                    </label>
                     <button onClick={saveOffer} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
                   </div>
                 </Modal>
@@ -1613,7 +1664,7 @@ export default function AdminDashboard() {
                       <span className="hidden md:inline">Delete Section</span>
                       <span className="md:hidden">Delete</span>
                     </button>
-                    <button onClick={() => setEditAd2({ image_url: null, link: null })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
+                    <button onClick={() => setEditAd2({ image_url: null, link: null, show_border: false })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
                       <Plus className="w-4 h-4" />
                       <span className="hidden md:inline">Add Item</span>
                       <span className="md:hidden">Add</span>
@@ -1662,6 +1713,10 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium mb-1.5">Link (optional)</label>
                       <input value={editAd2.link || ''} onChange={(e) => setEditAd2({ ...editAd2, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
                     </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Switch checked={editAd2.show_border ?? false} onCheckedChange={(checked) => setEditAd2({ ...editAd2, show_border: Boolean(checked) })} />
+                      <span>Enable Border</span>
+                    </label>
                     <button onClick={saveAd2} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
                   </div>
                 </Modal>
@@ -1737,7 +1792,7 @@ export default function AdminDashboard() {
                       <span className="hidden md:inline">Delete Section</span>
                       <span className="md:hidden">Delete</span>
                     </button>
-                    <button onClick={() => setEditAd1({ image_url: null, link: null })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
+                    <button onClick={() => setEditAd1({ image_url: null, link: null, show_border: false })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
                       <Plus className="w-4 h-4" />
                       <span className="hidden md:inline">Add Item</span>
                       <span className="md:hidden">Add</span>
@@ -1784,6 +1839,10 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-medium mb-1.5">Link (optional)</label>
                       <input value={editAd1.link || ''} onChange={(e) => setEditAd1({ ...editAd1, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
                     </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Switch checked={editAd1.show_border ?? false} onCheckedChange={(checked) => setEditAd1({ ...editAd1, show_border: Boolean(checked) })} />
+                      <span>Enable Border</span>
+                    </label>
                     <button onClick={saveAd1} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
                   </div>
                 </Modal>
@@ -1859,7 +1918,7 @@ export default function AdminDashboard() {
                       <span className="hidden md:inline">Delete Section</span>
                       <span className="md:hidden">Delete</span>
                     </button>
-                    <button onClick={() => setEditAd3({ image_url: null, link: null })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
+                    <button onClick={() => setEditAd3({ image_url: null, heading: '', description: '', link: null, show_border: false })} className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5">
                       <Plus className="w-4 h-4" />
                       <span className="hidden md:inline">Add Item</span>
                       <span className="md:hidden">Add</span>
@@ -1876,7 +1935,8 @@ export default function AdminDashboard() {
                         <SortableOfferItem key={ad.id} id={ad.id} disabled={!ads3FixedModeEnabled}>
                           {ad.image_url && <img src={ad.image_url} alt="" className="w-20 h-14 rounded-lg object-cover" />}
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm">Ad {selectedAds3.indexOf(ad) + 1}</h3>
+                            <h3 className="font-semibold text-sm">{ad.heading?.trim() || `Ad ${selectedAds3.indexOf(ad) + 1}`}</h3>
+                            {ad.description && <p className="text-xs text-muted-foreground truncate">{ad.description}</p>}
                           </div>
                           <button onClick={() => setEditAd3(ad)} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
                           <button onClick={() => deleteAd3(ad.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
@@ -1905,9 +1965,21 @@ export default function AdminDashboard() {
                   <div className="space-y-4">
                     <ImageCropper label="Ad Image" value={editAd3.image_url || null} onChange={(url) => setEditAd3({ ...editAd3, image_url: url })} folder="ads" previewAspectRatio={16/9} previewLabel="Desktop Preview (16:9)" />
                     <div>
+                      <label className="block text-sm font-medium mb-1.5">Heading (optional)</label>
+                      <input value={editAd3.heading || ''} onChange={(e) => setEditAd3({ ...editAd3, heading: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">Description (optional)</label>
+                      <textarea value={editAd3.description || ''} onChange={(e) => setEditAd3({ ...editAd3, description: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" rows={3} />
+                    </div>
+                    <div>
                       <label className="block text-sm font-medium mb-1.5">Link (optional)</label>
                       <input value={editAd3.link || ''} onChange={(e) => setEditAd3({ ...editAd3, link: e.target.value || null })} className="w-full px-4 py-2.5 rounded-lg border border-input bg-background" />
                     </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Switch checked={editAd3.show_border ?? false} onCheckedChange={(checked) => setEditAd3({ ...editAd3, show_border: Boolean(checked) })} />
+                      <span>Enable Border</span>
+                    </label>
                     <button onClick={saveAd3} className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold">Save</button>
                   </div>
                 </Modal>

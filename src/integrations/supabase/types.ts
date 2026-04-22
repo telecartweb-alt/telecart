@@ -19,24 +19,30 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          is_fixed: boolean
           link: string | null
           section_id: string
+          show_border: boolean
           sort_order: number
         }
         Insert: {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_fixed?: boolean
           link?: string | null
           section_id: string
+          show_border?: boolean
           sort_order?: number
         }
         Update: {
           created_at?: string
           id?: string
           image_url?: string | null
+          is_fixed?: boolean
           link?: string | null
           section_id?: string
+          show_border?: boolean
           sort_order?: number
         }
         Relationships: []
@@ -44,26 +50,38 @@ export type Database = {
       ads_3col: {
         Row: {
           created_at: string
+          description: string | null
+          heading: string | null
           id: string
           image_url: string | null
+          is_fixed: boolean
           link: string | null
           section_id: string
+          show_border: boolean
           sort_order: number
         }
         Insert: {
           created_at?: string
+          description?: string | null
+          heading?: string | null
           id?: string
           image_url?: string | null
+          is_fixed?: boolean
           link?: string | null
           section_id: string
+          show_border?: boolean
           sort_order?: number
         }
         Update: {
           created_at?: string
+          description?: string | null
+          heading?: string | null
           id?: string
           image_url?: string | null
+          is_fixed?: boolean
           link?: string | null
           section_id?: string
+          show_border?: boolean
           sort_order?: number
         }
         Relationships: []
@@ -220,8 +238,10 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          is_fixed: boolean
           logo_url: string | null
           section_id: string
+          show_border: boolean
           sort_order: number
           title: string
           updated_at: string
@@ -230,8 +250,10 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          is_fixed?: boolean
           logo_url?: string | null
           section_id: string
+          show_border?: boolean
           sort_order?: number
           title: string
           updated_at?: string
@@ -240,8 +262,10 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          is_fixed?: boolean
           logo_url?: string | null
           section_id?: string
+          show_border?: boolean
           sort_order?: number
           title?: string
           updated_at?: string
@@ -255,6 +279,7 @@ export type Database = {
           id: string
           is_visible: boolean
           label: string
+          link: string | null
           sort_order: number
         }
         Insert: {
@@ -263,6 +288,7 @@ export type Database = {
           id?: string
           is_visible?: boolean
           label: string
+          link?: string | null
           sort_order?: number
         }
         Update: {
@@ -271,6 +297,7 @@ export type Database = {
           id?: string
           is_visible?: boolean
           label?: string
+          link?: string | null
           sort_order?: number
         }
         Relationships: [
@@ -317,6 +344,7 @@ export type Database = {
           is_fixed: boolean
           link: string | null
           section_id: string
+          show_border: boolean
           sort_order: number
           updated_at: string
         }
@@ -329,6 +357,7 @@ export type Database = {
           is_fixed?: boolean
           link?: string | null
           section_id: string
+          show_border?: boolean
           sort_order?: number
           updated_at?: string
         }
@@ -341,6 +370,7 @@ export type Database = {
           is_fixed?: boolean
           link?: string | null
           section_id?: string
+          show_border?: boolean
           sort_order?: number
           updated_at?: string
         }
@@ -349,6 +379,7 @@ export type Database = {
       page_sections: {
         Row: {
           created_at: string
+          description: string | null
           heading: string
           id: string
           is_locked: boolean
@@ -360,6 +391,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           heading?: string
           id?: string
           is_locked?: boolean
@@ -371,6 +403,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           heading?: string
           id?: string
           is_locked?: boolean
@@ -389,6 +422,8 @@ export type Database = {
           id: string
           link: string | null
           name: string
+          schedule_link: string | null
+          show_schedule_in_separate_tab: boolean
           sort_order: number
           video_url?: string | null
         }
@@ -398,6 +433,8 @@ export type Database = {
           id?: string
           link?: string | null
           name: string
+          schedule_link?: string | null
+          show_schedule_in_separate_tab?: boolean
           sort_order?: number
           video_url?: string | null
         }
@@ -407,6 +444,8 @@ export type Database = {
           id?: string
           link?: string | null
           name?: string
+          schedule_link?: string | null
+          show_schedule_in_separate_tab?: boolean
           sort_order?: number
           video_url?: string | null
         }

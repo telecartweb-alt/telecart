@@ -127,9 +127,7 @@ export default function CategoryDetail() {
               )}
               <div>
                 <h1 className="text-2xl font-bold">{category.name}</h1>
-                <p className="text-sm text-muted-foreground">
-                  0.0 <span className="ml-1">(0 reviews)</span>
-                </p>
+                
               </div>
             </div>
           </div>

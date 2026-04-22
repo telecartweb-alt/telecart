@@ -12,13 +12,21 @@ interface Offer {
   link: string | null;
   sort_order: number;
   is_fixed: boolean;
+  show_border: boolean;
 }
 
 interface OffersSectionProps {
   sectionId: string;
+  sectionTable?: string;
+  offersTable?: string;
 }
 
-export default function OffersSection({ sectionId }: OffersSectionProps) {
+export default function OffersSection({
+  sectionId,
+  sectionTable = 'page_sections',
+  offersTable = 'offers',
+}: OffersSectionProps) {
+  const db = supabase as any;
   const [offers, setOffers] = useState<Offer[]>([]);
   const [heading, setHeading] = useState('Offers & Discounts');
   const [showHeading, setShowHeading] = useState(true);
@@ -39,14 +47,14 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
 
   useEffect(() => {
     const loadOffers = () => {
-      supabase.from('offers').select('*').eq('section_id', sectionId).order('sort_order').then(({ data }) => {
+      db.from(offersTable).select('*').eq('section_id', sectionId).order('sort_order').then(({ data }: { data: Offer[] | null }) => {
         if (data) setOffers(data);
       });
     };
 
     const loadSection = async () => {
-      const { data } = await supabase
-        .from('page_sections')
+      const { data } = await db
+        .from(sectionTable)
         .select('heading, show_heading')
         .eq('id', sectionId)
         .single();
@@ -62,19 +70,19 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
 
     const offersChannel = supabase
       .channel(`offers_${sectionId}_live`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'offers' }, loadOffers)
+      .on('postgres_changes', { event: '*', schema: 'public', table: offersTable }, loadOffers)
       .subscribe();
 
     const sectionsChannel = supabase
       .channel(`page_sections_offers_${sectionId}_live`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_sections' }, loadSection)
+      .on('postgres_changes', { event: '*', schema: 'public', table: sectionTable }, loadSection)
       .subscribe();
 
     return () => {
       offersChannel.unsubscribe();
       sectionsChannel.unsubscribe();
     };
-  }, [sectionId]);
+  }, [db, offersTable, sectionId, sectionTable]);
 
   const displayOffers = useMemo(
     () => !fixedMode && needsCarousel ? [...offers, ...offers.slice(0, duplicatedCount)] : offersToDisplay,
@@ -117,7 +125,7 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
                     className="flex-none"
                     style={{ width: `calc(${slideWidth}% - 1.5rem)` }}
                   >
-                    <a href={offer.link || '#'} className="block group">
+                    <a href={offer.link || '#'} className={`block group rounded-xl ${offer.show_border ? 'border border-border p-3' : ''}`}>
                       {offer.image_url && (
                         <div className="mb-4 h-[px] overflow-hidden rounded-xl bg-muted">
                           <img
@@ -150,7 +158,7 @@ export default function OffersSection({ sectionId }: OffersSectionProps) {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
             {offersToDisplay.map((offer) => (
               <div key={offer.id}>
-                <a href={offer.link || '#'} className="block group">
+                <a href={offer.link || '#'} className={`block group rounded-xl ${offer.show_border ? 'border border-border p-3' : ''}`}>
                   {offer.image_url && (
                     <div className="mb-4 h-[px] overflow-hidden rounded-xl bg-muted">
                       <img

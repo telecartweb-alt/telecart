@@ -14,13 +14,21 @@ interface Card {
   link: string | null;
   section_id: string;
   is_fixed: boolean;
+  show_border: boolean;
 }
 
 interface FeaturedCardsProps {
   sectionId: string;
+  sectionTable?: string;
+  cardsTable?: string;
 }
 
-export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
+export default function FeaturedCards({
+  sectionId,
+  sectionTable = 'page_sections',
+  cardsTable = 'featured_cards',
+}: FeaturedCardsProps) {
+  const db = supabase as any;
   const [cards, setCards] = useState<Card[]>([]);
   const [heading, setHeading] = useState('Featured Companies');
   const [showHeading, setShowHeading] = useState(true);
@@ -42,8 +50,8 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
 
   useEffect(() => {
     const loadCards = () => {
-      supabase
-        .from('featured_cards')
+      db
+        .from(cardsTable)
         .select('*')
         .eq('section_id', sectionId)
         .order('sort_order')
@@ -53,14 +61,15 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
               ...card,
               link: card.link ?? null,
               is_fixed: card.is_fixed ?? false,
+              show_border: card.show_border ?? false,
             })));
           }
         });
     };
 
     const loadSection = async () => {
-      const { data } = await supabase
-        .from('page_sections')
+      const { data } = await db
+        .from(sectionTable)
         .select('heading, show_heading')
         .eq('id', sectionId)
         .single();
@@ -78,7 +87,7 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
       .channel(`featured_cards_${sectionId}_live`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'featured_cards' },
+        { event: '*', schema: 'public', table: cardsTable },
         loadCards
       )
       .subscribe();
@@ -87,7 +96,7 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
       .channel(`page_sections_${sectionId}_live`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'page_sections' },
+        { event: '*', schema: 'public', table: sectionTable },
         loadSection
       )
       .subscribe();
@@ -96,7 +105,7 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
       cardsChannel.unsubscribe();
       sectionsChannel.unsubscribe();
     };
-  }, [sectionId]);
+  }, [cardsTable, db, sectionId, sectionTable]);
 
   const displayCards = useMemo(
     () => !fixedMode && needsCarousel ? [...cardsToDisplay, ...cardsToDisplay.slice(0, duplicatedCount)] : cardsToDisplay,
@@ -104,9 +113,6 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
   );
 
   if (cards.length === 0) return null;
-
-  const raisedCardIndex =
-    !isMobile && needsCarousel ? (index + 1) % cardsToDisplay.length : -1;
 
   return (
     <section className="py-10 md:py-14">
@@ -116,7 +122,43 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
             {heading}
           </h2>
         )}
-        {needsCarousel ? (
+        {/* Fixed mode: vertical stack/grid on mobile, grid on desktop. Slider only when not fixed mode */}
+        {fixedMode ? (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {cardsToDisplay.map((card) => {
+              const handleCardClick = () => {
+                if (card.link) {
+                  window.open(card.link, '_blank', 'noopener,noreferrer');
+                }
+              };
+              return (
+                <div key={card.id}>
+                  <div
+                    onClick={handleCardClick}
+                    className={`h-[240px] rounded-[28px] bg-[#fcf9f5] pt-8 pl-8 pr-6 pb-6 transition-all duration-300 flex flex-col group cursor-pointer ${card.show_border ? 'border border-border' : ''} ${card.link ? 'hover:shadow-[0_20px_50px_rgba(15,23,42,0.25)]' : ''}`}
+                  >
+                    {card.logo_url && (
+                      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
+                        <img
+                          src={card.logo_url}
+                          alt={card.title}
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
+                    )}
+                    <h3 className="mb-2 text-xl font-semibold leading-tight flex items-center gap-2">
+                      {card.title}
+                      {card.link && <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                    </h3>
+                    <p className="text-base leading-relaxed text-muted-foreground">
+                      {card.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : needsCarousel ? (
           <div className="relative">
             <div className="overflow-hidden py-6">
               <div
@@ -128,15 +170,11 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
                 }}
               >
                 {displayCards.map((card, displayIndex) => {
-                  const realIndex = displayIndex % cardsToDisplay.length;
-                  const isRaised = realIndex === raisedCardIndex;
-
                   const handleCardClick = () => {
                     if (card.link) {
                       window.open(card.link, '_blank', 'noopener,noreferrer');
                     }
                   };
-
                   return (
                     <div
                       key={`${card.id}-${displayIndex}`}
@@ -145,11 +183,7 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
                     >
                       <div
                         onClick={handleCardClick}
-                        className={`h-[240px] rounded-[28px] pt-8 pl-8 pr-6 pb-6 transition-all duration-300 flex flex-col group cursor-pointer ${
-                          isRaised
-                            ? 'bg-card shadow-[0_20px_50px_rgba(15,23,42,0.12)]'
-                            : 'bg-[#fcf9f5]'
-                        } ${card.link ? 'hover:shadow-[0_20px_50px_rgba(15,23,42,0.25)]' : ''}`}
+                        className={`h-[240px] rounded-[28px] bg-[#fcf9f5] pt-8 pl-8 pr-6 pb-6 transition-all duration-300 flex flex-col group cursor-pointer ${card.show_border ? 'border border-border' : ''} ${card.link ? 'hover:shadow-[0_20px_50px_rgba(15,23,42,0.25)]' : ''}`}
                       >
                         {card.logo_url && (
                           <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
@@ -182,16 +216,11 @@ export default function FeaturedCards({ sectionId }: FeaturedCardsProps) {
                   window.open(card.link, '_blank', 'noopener,noreferrer');
                 }
               };
-
               return (
                 <div key={card.id} className={`${cardsToDisplay.length < 3 ? 'w-[calc(33.333%-10px)]' : 'flex-1'} px-2.5`}>
                   <div
                     onClick={handleCardClick}
-                    className={`h-[240px] rounded-[28px] pt-8 pl-8 pr-6 pb-6 transition-all duration-300 flex flex-col group cursor-pointer ${
-                      index === 1
-                        ? 'bg-card shadow-[0_20px_50px_rgba(15,23,42,0.12)]'
-                        : 'bg-[#fcf9f5]'
-                    } ${card.link ? 'hover:shadow-[0_20px_50px_rgba(15,23,42,0.25)]' : ''}`}
+                    className={`h-[240px] rounded-[28px] bg-[#fcf9f5] pt-8 pl-8 pr-6 pb-6 transition-all duration-300 flex flex-col group cursor-pointer ${card.show_border ? 'border border-border' : ''} ${card.link ? 'hover:shadow-[0_20px_50px_rgba(15,23,42,0.25)]' : ''}`}
                   >
                     {card.logo_url && (
                       <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
