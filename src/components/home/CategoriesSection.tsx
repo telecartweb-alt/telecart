@@ -210,7 +210,7 @@ export default function CategoriesSection({ sectionId }: CategoriesSectionProps)
                       <button
                         type="button"
                         onClick={() => navigate(`/category/${category.id}/subcategories`)}
-                        className="mt-3 text-sm md:text-base font-semibold text-primary hover:underline"
+                        className="mt-3 text-sm md:text-base font-semibold text-primary hover:underline text-left"
                       >
                         See all {'->'}
                       </button>

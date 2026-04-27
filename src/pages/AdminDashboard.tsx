@@ -22,7 +22,7 @@ import {
 
 interface PageSection { id: string; section_type: string; name: string; sort_order: number; is_visible: boolean; is_locked: boolean; heading: string; description: string | null; show_heading: boolean; }
 interface FeaturedCard { id: string; title: string; description: string; logo_url: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; show_border: boolean; }
-interface Category { id: string; name: string; icon_url: string | null; bg_color: string; sort_order: number; section_id: string; }
+interface Category { id: string; name: string; icon_url: string | null; bg_color: string; sort_order: number; section_id: string; show_downloads_tab?: boolean; }
 interface Subcategory { id: string; category_id: string; name: string; link: string | null; video_url?: string | null; schedule_link?: string | null; show_schedule_in_separate_tab?: boolean; schedule_link_2?: string | null; show_schedule_2_in_separate_tab?: boolean; sort_order: number; }
 interface CategoryDownload { id: string; category_id: string; file_name: string; file_url: string; file_type: string; }
 interface Offer { id: string; image_url: string | null; heading: string; description: string | null; link: string | null; sort_order: number; section_id: string; is_fixed: boolean; show_border: boolean; }
@@ -61,6 +61,26 @@ function SortableOfferItem({ id, children, disabled }: { id: string; children: R
         aria-label={disabled ? 'Fixed mode disabled' : 'Drag to reorder offer'}
       >
         {disabled ? <Lock className="w-4 h-4" /> : <GripVertical className="w-4 h-4" />}
+      </button>
+      {children}
+    </div>
+  );
+}
+
+function SortableCategoryItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
+      <button
+        {...attributes}
+        {...listeners}
+        type="button"
+        className="text-muted-foreground cursor-grab hover:text-foreground"
+        aria-label="Drag to reorder category"
+      >
+        <GripVertical className="w-4 h-4" />
       </button>
       {children}
     </div>
@@ -256,6 +276,9 @@ export default function AdminDashboard() {
     ? ads2.filter((a) => a.section_id === selectedAds1SectionId).sort((a, b) => a.sort_order - b.sort_order)
     : [];
   const ads1FixedModeEnabled = selectedAds1.some((a) => a.is_fixed);
+  const selectedCategories = selectedCategoriesSectionId
+    ? categories.filter((c) => c.section_id === selectedCategoriesSectionId).sort((a, b) => a.sort_order - b.sort_order)
+    : [];
 
   async function handleOfferDragEnd(event: DragEndEvent) {
     if (!offersFixedModeEnabled) return;
@@ -365,6 +388,31 @@ export default function AdminDashboard() {
     }
 
     toast.success('Ad order saved!');
+  }
+
+  async function handleCategoryDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = selectedCategories.findIndex((category) => category.id === active.id);
+    const newIndex = selectedCategories.findIndex((category) => category.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(selectedCategories, oldIndex, newIndex).map((category, index) => ({
+      ...category,
+      sort_order: index,
+    }));
+
+    setCategories((prev) => prev.map((category) => {
+      const updated = newOrder.find((item) => item.id === category.id);
+      return updated ? updated : category;
+    }));
+
+    for (const category of newOrder) {
+      await updateCategorySortOrder(category.id, category.sort_order);
+    }
+
+    toast.success('Category order saved!');
   }
 
   async function saveHero() {
@@ -539,6 +587,18 @@ export default function AdminDashboard() {
     }
   }
 
+  async function updateCategorySortOrder(categoryId: string, newOrder: number) {
+    try {
+      const { error } = await supabase.from('categories').update({ sort_order: newOrder }).eq('id', categoryId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error('Error updating category order:', err);
+      toast.error('Failed to save category order.');
+      return false;
+    }
+  }
+
   async function saveCategory() {
     if (!editCategory) return;
     if (!editCategory.name?.trim()) {
@@ -562,6 +622,7 @@ export default function AdminDashboard() {
             name: editCategory.name,
             icon_url: editCategory.icon_url,
             bg_color: editCategory.bg_color,
+            show_downloads_tab: editCategory.show_downloads_tab ?? true,
             section_id: selectedCategoriesSectionId
           })
           .eq('id', categoryId);
@@ -574,8 +635,9 @@ export default function AdminDashboard() {
             name: editCategory.name,
             icon_url: editCategory.icon_url,
             bg_color: editCategory.bg_color,
+            show_downloads_tab: editCategory.show_downloads_tab ?? true,
             section_id: selectedCategoriesSectionId,
-            sort_order: categories.length
+            sort_order: selectedCategories.length
           })
           .select()
           .single();
@@ -1280,7 +1342,7 @@ export default function AdminDashboard() {
                       <span className="md:hidden">Delete</span>
                     </button>
                     <button
-                      onClick={() => { setEditCategory({ name: '', bg_color: '#FFF9C4', icon_url: null }); setEditSubs([]); setEditDownloads([]); }}
+                      onClick={() => { setEditCategory({ name: '', bg_color: '#FFF9C4', icon_url: null, show_downloads_tab: true }); setEditSubs([]); setEditDownloads([]); }}
                       className="px-3 py-2 md:px-4 md:py-2 rounded-lg bg-primary text-primary-foreground text-xs md:text-sm font-semibold flex items-center justify-center gap-1.5"
                     >
                       <Plus className="w-4 h-4" />
@@ -1291,25 +1353,27 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="grid gap-3">
-                {categories
-                  .filter(c => selectedCategoriesSectionId ? c.section_id === selectedCategoriesSectionId : true)
-                  .map((cat) => (
-                  <div key={cat.id} className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.bg_color }}>
-                      {cat.icon_url && <img src={cat.icon_url} alt="" className="w-6 h-6 object-contain" />}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-sm">{cat.name}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {subcategories.filter(s => s.category_id === cat.id).length} subcategories, {categoryDownloads.filter((download) => download.category_id === cat.id).length} downloads
-                      </p>
-                    </div>
-                    <button onClick={() => { setEditCategory(cat); setEditSubs(subcategories.filter(s => s.category_id === cat.id)); setEditDownloads(categoryDownloads.filter((download) => download.category_id === cat.id)); }} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => deleteCategory(cat.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCategoryDragEnd}>
+                <SortableContext items={selectedCategories.map((cat) => cat.id)} strategy={verticalListSortingStrategy}>
+                  <div className="grid gap-3">
+                    {selectedCategories.map((cat) => (
+                      <SortableCategoryItem key={cat.id} id={cat.id}>
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.bg_color }}>
+                          {cat.icon_url && <img src={cat.icon_url} alt="" className="w-6 h-6 object-contain" />}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-sm">{cat.name}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {subcategories.filter(s => s.category_id === cat.id).length} subcategories, {categoryDownloads.filter((download) => download.category_id === cat.id).length} downloads
+                          </p>
+                        </div>
+                        <button onClick={() => { setEditCategory(cat); setEditSubs(subcategories.filter(s => s.category_id === cat.id)); setEditDownloads(categoryDownloads.filter((download) => download.category_id === cat.id)); }} className="p-2 text-muted-foreground hover:text-foreground"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => deleteCategory(cat.id)} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                      </SortableCategoryItem>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
               {editCategory && (
                 <Modal title={editCategory.id ? 'Edit Category' : 'Add Category'} onClose={() => { setEditCategory(null); setEditSubs([]); setEditDownloads([]); }}>
                   <div className="space-y-4">
@@ -1325,6 +1389,10 @@ export default function AdminDashboard() {
                         <input value={editCategory.bg_color || ''} onChange={(e) => setEditCategory({ ...editCategory, bg_color: e.target.value })} className="flex-1 px-4 py-2.5 rounded-lg border border-input bg-background" />
                       </div>
                     </div>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Switch checked={editCategory.show_downloads_tab ?? true} onCheckedChange={(checked) => setEditCategory({ ...editCategory, show_downloads_tab: Boolean(checked) })} />
+                      <span>Show Downloads tab</span>
+                    </label>
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-medium">Subcategories</label>
@@ -1338,30 +1406,34 @@ export default function AdminDashboard() {
                           </div>
                           <input placeholder="Link (optional)" value={sub.link || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], link: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
                           <input placeholder="Video URL (optional)" value={sub.video_url || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], video_url: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
-                          <input placeholder="Schedule Link (optional)" value={sub.schedule_link || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], schedule_link: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
-                          <input placeholder="Schedule Link 2 (optional)" value={sub.schedule_link_2 || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], schedule_link_2: e.target.value || null }; setEditSubs(ns); }} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
-                          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Switch
-                              checked={sub.show_schedule_in_separate_tab ?? false}
-                              onCheckedChange={(checked) => {
-                                const ns = [...editSubs];
-                                ns[i] = { ...ns[i], show_schedule_in_separate_tab: Boolean(checked) };
-                                setEditSubs(ns);
-                              }}
-                            />
-                            <span>Show schedule in separate tab</span>
-                          </label>
-                          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Switch
-                              checked={sub.show_schedule_2_in_separate_tab ?? false}
-                              onCheckedChange={(checked) => {
-                                const ns = [...editSubs];
-                                ns[i] = { ...ns[i], show_schedule_2_in_separate_tab: Boolean(checked) };
-                                setEditSubs(ns);
-                              }}
-                            />
-                            <span>Show schedule 2 in separate tab</span>
-                          </label>
+                          <div className="flex items-center gap-3">
+                            <input placeholder="Schedule Link (optional)" value={sub.schedule_link || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], schedule_link: e.target.value || null }; setEditSubs(ns); }} className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                            <label className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
+                              <Switch
+                                checked={sub.show_schedule_in_separate_tab ?? false}
+                                onCheckedChange={(checked) => {
+                                  const ns = [...editSubs];
+                                  ns[i] = { ...ns[i], show_schedule_in_separate_tab: Boolean(checked) };
+                                  setEditSubs(ns);
+                                }}
+                              />
+                              
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input placeholder="Schedule Link 2 (optional)" value={sub.schedule_link_2 || ''} onChange={(e) => { const ns = [...editSubs]; ns[i] = { ...ns[i], schedule_link_2: e.target.value || null }; setEditSubs(ns); }} className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                            <label className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
+                              <Switch
+                                checked={sub.show_schedule_2_in_separate_tab ?? false}
+                                onCheckedChange={(checked) => {
+                                  const ns = [...editSubs];
+                                  ns[i] = { ...ns[i], show_schedule_2_in_separate_tab: Boolean(checked) };
+                                  setEditSubs(ns);
+                                }}
+                              />
+                            
+                            </label>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1371,19 +1443,16 @@ export default function AdminDashboard() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (editDownloads.length >= 5) return;
                             setEditDownloads([
                               ...editDownloads,
                               { id: crypto.randomUUID(), category_id: editCategory.id || '', file_name: '', file_url: '', file_type: 'file' },
                             ]);
                           }}
-                          disabled={editDownloads.length >= 5}
-                          className="text-sm text-primary font-semibold disabled:text-muted-foreground"
+                          className="text-sm text-primary font-semibold"
                         >
                           + Add
                         </button>
                       </div>
-                      <p className="mb-3 text-xs text-muted-foreground">Max 5 PDF or DOCX files. Ye category overview me button ke roop me dikhenge.</p>
                       <div className="space-y-3">
                         {editDownloads.map((download, i) => (
                           <div key={download.id || i} className="rounded-xl border border-border p-3">

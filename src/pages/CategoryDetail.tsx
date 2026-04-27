@@ -22,6 +22,15 @@ interface Subcategory {
   link: string | null;
 }
 
+interface CategoryButton {
+  id?: string;
+  category_id: string;
+  label: string;
+  link?: string | null;
+  is_visible: boolean;
+  sort_order: number;
+}
+
 interface Feature {
   id: string;
   title: string;
@@ -49,6 +58,8 @@ export default function CategoryDetail() {
   const [category, setCategory] = useState<Category | null>(null);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [features, setFeatures] = useState<Feature[]>([]);
+  const [buttons, setButtons] = useState<CategoryButton[]>([]);
+  const [detailDescription, setDetailDescription] = useState('');
   const [subcategoriesTabLabel, setSubcategoriesTabLabel] = useState('Subcategories');
   const [activeTab, setActiveTab] = useState(1);
 
@@ -65,16 +76,19 @@ export default function CategoryDetail() {
         { data: subcategoryData },
         { data: featureData },
         { data: subFeatureData },
+        { data: buttonData },
       ] = await Promise.all([
         supabase.from('categories').select('*').eq('id', id).single(),
         supabase.from('subcategories').select('*').eq('category_id', id).order('sort_order'),
         supabase.from('category_features').select('*').eq('category_id', id).order('sort_order'),
         supabase.from('category_sub_features').select('*').order('sort_order'),
+        supabase.from('category_buttons').select('*').eq('category_id', id).order('sort_order'),
       ]);
 
       if (categoryData) {
         setCategory(categoryData);
         setSubcategoriesTabLabel(categoryData.subcategories_tab_label || 'Subcategories');
+        setDetailDescription(categoryData.detail_description || '');
       }
       if (subcategoryData) setSubcategories(subcategoryData);
       if (featureData) {
@@ -85,6 +99,7 @@ export default function CategoryDetail() {
           })),
         );
       }
+      if (buttonData) setButtons(buttonData);
     };
 
     loadCategoryData();
@@ -95,6 +110,7 @@ export default function CategoryDetail() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subcategories', filter: `category_id=eq.${id}` }, loadCategoryData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'category_features', filter: `category_id=eq.${id}` }, loadCategoryData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'category_sub_features' }, loadCategoryData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'category_buttons', filter: `category_id=eq.${id}` }, loadCategoryData)
       .subscribe();
 
     return () => {
@@ -127,9 +143,27 @@ export default function CategoryDetail() {
               )}
               <div>
                 <h1 className="text-2xl font-bold">{category.name}</h1>
-                
+                {detailDescription && (
+                  <p className="mt-2 text-sm text-muted-foreground">{detailDescription}</p>
+                )}
               </div>
             </div>
+
+            {buttons.filter((b) => b.is_visible).length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {buttons.filter((b) => b.is_visible).map((button) => (
+                  <a
+                    key={button.id}
+                    href={normalizeExternalUrl(button.link || '') || '#'}
+                    target={button.link ? '_blank' : undefined}
+                    rel={button.link ? 'noopener noreferrer' : undefined}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-6 py-2.5 text-sm font-medium transition-colors hover:bg-secondary"
+                  >
+                    {button.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

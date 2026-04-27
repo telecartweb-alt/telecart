@@ -25,6 +25,7 @@ const SECTION_LABELS: Record<string, string> = {
   ads_1col: '1-Column Ad',
   ads_2col: '2-Column Ads',
   ads_3col: '3-Column Ads',
+  logo_steps: 'Logo Steps',
 };
 
 const SECTION_HEADINGS: Record<string, string> = {
@@ -33,6 +34,7 @@ const SECTION_HEADINGS: Record<string, string> = {
   ads_1col: 'Featured Ad',
   ads_2col: '2 Column Ads',
   ads_3col: '3 Column Ads',
+  logo_steps: 'How It Helps You',
 };
 
 export function useScopedSectionInstances({ tableName, scopeColumn, scopeValue }: UseScopedSectionInstancesOptions) {

@@ -95,7 +95,11 @@ export type Database = {
           icon_url: string | null
           id: string
           name: string
+          overview_points_heading: string | null
           section_id: string
+          show_downloads_tab: boolean
+          show_overview_section: boolean
+          show_products_tab: boolean
           sort_order: number
           subcategories_tab_label: string | null
           updated_at: string
@@ -108,7 +112,11 @@ export type Database = {
           icon_url?: string | null
           id?: string
           name: string
+          overview_points_heading?: string | null
           section_id: string
+          show_downloads_tab?: boolean
+          show_overview_section?: boolean
+          show_products_tab?: boolean
           sort_order?: number
           subcategories_tab_label?: string | null
           updated_at?: string
@@ -121,12 +129,51 @@ export type Database = {
           icon_url?: string | null
           id?: string
           name?: string
+          overview_points_heading?: string | null
           section_id?: string
+          show_downloads_tab?: boolean
+          show_overview_section?: boolean
+          show_products_tab?: boolean
           sort_order?: number
           subcategories_tab_label?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      category_overview_points: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          is_highlighted: boolean
+          sort_order: number
+          text: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          is_highlighted?: boolean
+          sort_order?: number
+          text: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_highlighted?: boolean
+          sort_order?: number
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_overview_points_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       category_downloads: {
         Row: {
