@@ -22,7 +22,7 @@ export default function Header() {
 
             {/* TEXT */}
             <span className="text-2xl md:text-3xl font-bold text-foreground">
-              BookDemo
+              BizReq
             </span>
 
           </Link>
