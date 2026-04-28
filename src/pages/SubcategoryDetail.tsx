@@ -386,6 +386,7 @@ export default function SubcategoryDetail() {
   const scheduleLink2Trimmed = scheduleLink2.trim();
   const hasVideoResource = Boolean(videoUrl);
   const showDownloadsTab = category?.show_downloads_tab !== false;
+  const showProductsTab = category?.show_products_tab !== false;
   const showScheduleAsTab = Boolean(scheduleLinkTrimmed && showScheduleTab);
   const showSchedule2AsTab = Boolean(scheduleLink2Trimmed && showScheduleTab2);
   const showFormAsTab = Boolean(formLink.trim() && showFormTab);
@@ -397,7 +398,7 @@ export default function SubcategoryDetail() {
 
   if (hasResourcesTab) tabs.push({ key: 'resources', label: 'Resources', icon: <Play className="h-4 w-4" /> });
   if (showDownloadsTab) tabs.push({ key: 'downloads', label: 'Downloads', icon: <Download className="h-4 w-4" /> });
-  tabs.push({ key: 'products', label: 'Products', icon: <Package className="h-4 w-4" /> });
+  if (isAdmin && showProductsTab) tabs.push({ key: 'products', label: 'Products', icon: <Package className="h-4 w-4" /> });
   if (showScheduleAsTab) tabs.push({ key: 'schedule', label: 'Schedule', icon: <CalendarDays className="h-4 w-4" /> });
   if (showSchedule2AsTab) tabs.push({ key: 'schedule-2', label: 'Schedule 2', icon: <CalendarDays className="h-4 w-4" /> });
   if (showFormAsTab) tabs.push({ key: 'form', label: 'Form', icon: <FileText className="h-4 w-4" /> });
@@ -1198,7 +1199,39 @@ export default function SubcategoryDetail() {
   };
 
   const renderProductSection = (section: ScopedPageSection) => {
+    const sectionCards = productCards
+      .filter((card) => card.section_id === section.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const sectionOffers = productOffers
+      .filter((offer) => offer.section_id === section.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const sectionAds1 = productAds2
+      .filter((ad) => ad.section_id === section.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const sectionAds2 = productAds2
+      .filter((ad) => ad.section_id === section.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const sectionAds3 = productAds3
+      .filter((ad) => ad.section_id === section.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const sectionLogoSteps = productLogoSteps
+      .filter((step) => step.section_id === section.id)
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    const renderEmptySection = (message: string) => (
+      <section key={section.id} className="rounded-2xl border border-border bg-card p-6">
+        {section.show_heading !== false && (
+          <h2 className="mb-4 text-center text-lg font-bold text-foreground">{getSectionDisplayName(section)}</h2>
+        )}
+        <p className="text-center text-sm text-muted-foreground">{message}</p>
+      </section>
+    );
+
     if (section.section_type === 'cards') {
+      if (sectionCards.length === 0) {
+        return renderEmptySection('No feature cards have been added here yet.');
+      }
+
       return (
         <FeaturedCards
           key={section.id}
@@ -1210,6 +1243,10 @@ export default function SubcategoryDetail() {
     }
 
     if (section.section_type === 'offers') {
+      if (sectionOffers.length === 0) {
+        return renderEmptySection('No offers have been added here yet.');
+      }
+
       return (
         <OffersSection
           key={section.id}
@@ -1221,6 +1258,10 @@ export default function SubcategoryDetail() {
     }
 
     if (section.section_type === 'ads_1col') {
+      if (sectionAds1.length === 0) {
+        return renderEmptySection('No ad content has been added here yet.');
+      }
+
       return (
         <Ads1ColSection
           key={section.id}
@@ -1232,6 +1273,10 @@ export default function SubcategoryDetail() {
     }
 
     if (section.section_type === 'ads_2col') {
+      if (sectionAds2.length === 0) {
+        return renderEmptySection('No ads have been added here yet.');
+      }
+
       return (
         <Ads2ColSection
           key={section.id}
@@ -1243,6 +1288,10 @@ export default function SubcategoryDetail() {
     }
 
     if (section.section_type === 'ads_3col') {
+      if (sectionAds3.length === 0) {
+        return renderEmptySection('No ads have been added here yet.');
+      }
+
       return (
         <Ads3ColSection
           key={section.id}
@@ -1254,16 +1303,8 @@ export default function SubcategoryDetail() {
     }
 
     if (section.section_type === 'logo_steps') {
-      const steps = productLogoSteps
-        .filter((step) => step.section_id === section.id)
-        .sort((a, b) => a.sort_order - b.sort_order);
-
-      if (steps.length === 0) {
-        return isAdmin ? (
-          <div key={section.id} className="rounded-2xl border border-dashed border-border bg-card/40 p-6 text-sm text-muted-foreground">
-            Add logo steps to preview this section.
-          </div>
-        ) : null;
+      if (sectionLogoSteps.length === 0) {
+        return renderEmptySection('No logo steps have been added here yet.');
       }
 
       return (
@@ -1272,9 +1313,9 @@ export default function SubcategoryDetail() {
             <h2 className="mb-6 text-center text-lg font-bold text-foreground md:text-xl">{getSectionDisplayName(section)}</h2>
           )}
           <div className="flex w-full flex-wrap justify-center gap-4">
-            {steps.map((step, index) => (
+            {sectionLogoSteps.map((step, index) => (
               <div key={step.id} className="relative w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(25%-0.75rem)] max-w-[320px] xl:max-w-none rounded-xl bg-transparent px-4 py-5 text-left">
-                {index < steps.length - 1 && (
+                {index < sectionLogoSteps.length - 1 && (
                   <div className="pointer-events-none absolute right-[-14px] top-1/2 hidden h-px w-7 -translate-y-1/2 border-t border-dashed border-sky-300 xl:block" />
                 )}
                 {step.logo_url && (
@@ -1312,7 +1353,7 @@ export default function SubcategoryDetail() {
         {/* Hero Section with colored background and video */}
         <div
           className="relative border-b border-border"
-          style={{ background: 'linear-gradient(90deg, #4f46e5 0%, #9333ea 100%)' }}
+          style={{ background: 'linear-gradient(90deg, #050329 0%, #050329 100%)' }}
         >
           <div className="mx-auto max-w-6xl px-4 py-8 flex flex-col md:flex-row md:items-center gap-y-6 md:gap-y-0 gap-x-6 md:gap-x-8">
             <div className="flex-1 min-w-0 flex flex-col gap-3 md:gap-2 items-start md:items-start justify-start text-left md:text-left">
@@ -1322,14 +1363,12 @@ export default function SubcategoryDetail() {
                     <img src={category.icon_url} alt={category.name} className="h-9 w-9 object-contain" />
                   </div>
                 )}
-                {showOverviewPointsSection && (
-                  <div className="min-w-0">
-                    <h1 className="text-2xl md:text-3xl font-bold text-white truncate drop-shadow-md">{subcategory.name}</h1>
-                    <p className="mt-1 inline-flex items-center rounded-md bg-white/10 px-2.5 py-1 text-xs md:text-xs font-medium text-white/90">
-                      {category.name}
-                    </p>
-                  </div>
-                )}
+                <div className="min-w-0">
+                  <h1 className="text-2xl md:text-3xl font-bold text-white truncate drop-shadow-md">{subcategory.name}</h1>
+                  <p className="mt-1 inline-flex items-center rounded-md bg-white/10 px-2.5 py-1 text-xs md:text-xs font-medium text-white/90">
+                    {category.name}
+                  </p>
+                </div>
               </div>
               <div className="mt-3 w-full">
                 {isAdmin ? (
@@ -1682,34 +1721,32 @@ export default function SubcategoryDetail() {
               <div className="space-y-4">
                 <div className="w-full md:max-w-5xl">
                   <h2 className="mb-6 text-lg font-bold">Products</h2>
-                  {productItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground"></p>
+                  {productItems.length === 0 && visibleProductSections.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No products or promotional content available.</p>
                   ) : (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {productItems.map((product) => (
-                        <button
-                          key={product.id}
-                          type="button"
-                          onClick={() => {
-                            const externalUrl = normalizeExternalUrl(product.link);
-                            if (externalUrl) {
-                              window.open(externalUrl, '_blank', 'noopener,noreferrer');
-                            }
-                          }}
-                          className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 text-left transition-all hover:border-primary/50 hover:shadow-md"
-                        >
-                          <span className="truncate pr-4 text-base font-medium text-foreground">{product.title}</span>
-                        </button>
-                      ))}
-                    </div>
+                    productItems.length > 0 && (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {productItems.map((product) => (
+                          <button
+                            key={product.id}
+                            type="button"
+                            onClick={() => {
+                              const externalUrl = normalizeExternalUrl(product.link);
+                              if (externalUrl) {
+                                window.open(externalUrl, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                            className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 text-left transition-all hover:border-primary/50 hover:shadow-md"
+                          >
+                            <span className="truncate pr-4 text-base font-medium text-foreground">{product.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )
                   )}
                 </div>
 
                 {visibleProductSections.map((section) => renderProductSection(section))}
-
-                {productItems.length === 0 && visibleProductSections.length === 0 && (
-                  <p className="text-sm text-muted-foreground"></p>
-                )}
               </div>
 
               {showScheduleAsTab && scheduleEmbedUrl && (
@@ -2425,7 +2462,7 @@ export default function SubcategoryDetail() {
                 {visibleProductSections.map((section) => renderProductSection(section))}
 
                 {productItems.length === 0 && visibleProductSections.length === 0 && (
-                  <p className="text-sm text-muted-foreground"></p>
+                  <p className="text-sm text-muted-foreground">No products or product sections are available yet.</p>
                 )}
               </div>
             </div>
