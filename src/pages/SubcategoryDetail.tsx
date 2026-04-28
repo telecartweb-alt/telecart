@@ -1308,7 +1308,7 @@ export default function SubcategoryDetail() {
       }
 
       return (
-        <section key={section.id} className="rounded-2xl border border-border bg-[#f8fbff] p-5 md:p-8">
+        <section key={section.id} className="rounded-2xl border border-border bg-white p-5 md:p-8">
           {section.show_heading !== false && (
             <h2 className="mb-6 text-center text-lg font-bold text-foreground md:text-xl">{getSectionDisplayName(section)}</h2>
           )}
@@ -1322,7 +1322,7 @@ export default function SubcategoryDetail() {
                   <img
                     src={step.logo_url}
                     alt=""
-                    className="mb-4 h-16 w-16 rounded-full bg-white object-contain p-3 shadow-sm ring-1 ring-border/60"
+                    className="mb-4 h-24 w-24 rounded-full bg-white object-contain p-3 shadow-sm ring-1 ring-border/60"
                   />
                 )}
                 <h3 className="mb-2 text-sm font-semibold text-foreground md:text-base">{step.title}</h3>
@@ -1359,7 +1359,7 @@ export default function SubcategoryDetail() {
             <div className="flex-1 min-w-0 flex flex-col gap-3 md:gap-2 items-start md:items-start justify-start text-left md:text-left">
               <div className="flex flex-col md:flex-row md:items-center gap-4 mt-4 md:mt-0">
                 {category.icon_url && (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-white">
                     <img src={category.icon_url} alt={category.name} className="h-9 w-9 object-contain" />
                   </div>
                 )}
@@ -1379,7 +1379,7 @@ export default function SubcategoryDetail() {
                     placeholder="Enter description here..."
                   />
                 ) : (
-                  <p className="text-white/90 text-sm md:text-base font-medium drop-shadow-sm">
+                  <p className="text-white/90 text-xl md:text-xl font-medium drop-shadow-sm">
                     {detailDescription || `Connect with businesses to expand your brand presence.`}
                   </p>
                 )}
@@ -1424,7 +1424,7 @@ export default function SubcategoryDetail() {
                       href={normalizeExternalUrl(button.link || '') || '#'}
                       target={button.link ? '_blank' : undefined}
                       rel={button.link ? 'noopener noreferrer' : undefined}
-                      className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-white/30"
+                      className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white px-5 py-2 text-sm font-medium text-[#331f8d] transition-colors hover:bg-white/30"
                     >
                       {button.label}
                     </a>

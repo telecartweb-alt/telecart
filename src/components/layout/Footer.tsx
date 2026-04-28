@@ -89,9 +89,9 @@ export default function Footer() {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">B</span>
             </div>
-            <span className="text-lg font-bold">Book Demo</span>
+            <span className="text-lg font-bold">BizReq</span>
           </div>
-          <p className="text-sm opacity-50">© {new Date().getFullYear()} Book Demo. All rights reserved.</p>
+          <p className="text-sm opacity-50">© {new Date().getFullYear()} BizReq. All rights reserved.</p>
           <div className="flex gap-4">
             <a href="#" className="text-sm opacity-60 hover:opacity-100 transition-opacity">Twitter</a>
             <a href="#" className="text-sm opacity-60 hover:opacity-100 transition-opacity">LinkedIn</a>
