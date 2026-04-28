@@ -1353,7 +1353,7 @@ export default function SubcategoryDetail() {
         {/* Hero Section with colored background and video */}
         <div
           className="relative border-b border-border"
-          style={{ background: 'linear-gradient(90deg, #050329 0%, #050329 100%)' }}
+          style={{ background: 'linear-gradient(90deg, #4f46e5 0%, #9333ea 100%)' }}
         >
           <div className="mx-auto max-w-6xl px-4 py-8 flex flex-col md:flex-row md:items-center gap-y-6 md:gap-y-0 gap-x-6 md:gap-x-8">
             <div className="flex-1 min-w-0 flex flex-col gap-3 md:gap-2 items-start md:items-start justify-start text-left md:text-left">
