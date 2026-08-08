@@ -13,7 +13,7 @@ async function handlePrefill(token, env) {
     }
 
     try {
-        const tokenRecord = await validateZohoPrefillToken({ env, token });
+        const tokenRecord = await validateZohoPrefillToken({ env, token, allowUsed: true });
         if (!tokenRecord) {
             const response = jsonResponse({ success: false, message: 'Invalid or expired token' }, 400);
             console.log('[prefill] validation result: token invalid');
