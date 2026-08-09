@@ -12,6 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { getBrandActionLinks } from '@/components/shared/BrandActionLinks';
 import { buildHierarchicalSearchResults } from '@/lib/searchHierarchy';
 import { requireAuthenticationBeforeOpeningLink } from '@/lib/authGuard';
+import { openZohoProtectedLink } from '@/lib/zohoLink';
 
 type SearchResultType = 'category' | 'subcategory' | 'brand' | 'brand_action_link' | 'section';
 

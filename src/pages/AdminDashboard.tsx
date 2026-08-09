@@ -13,6 +13,7 @@ import {
   getComparisonPlanVisibilityMap,
   setComparisonPlanVisibility,
 } from '@/lib/getListedComparisonVisibility';
+import { resolveSubcategorySortOrder } from '@/lib/subcategoryOrdering';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent
 } from '@dnd-kit/core';
@@ -3946,7 +3947,7 @@ export default function AdminDashboard() {
           button_3_text: sub.button_3_text || null,
           button_3_link: sub.button_3_link || null,
           button_3_visible: sub.button_3_visible ?? false,
-          sort_order: index,
+          sort_order: resolveSubcategorySortOrder(sub, index),
         }));
 
         const deleteSubcategories = activeSubId
